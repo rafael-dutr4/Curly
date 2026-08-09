@@ -43,10 +43,12 @@ export interface CollectionNode {
 }
 
 /**
- * Reserved for v2. Document by example puts everything inside a collection
- * literal, which leaves nowhere to hang a query, so the top level `@name { }`
- * form is claimed now. Parsing it today means `@access "..." { }` can be added
- * later without breaking a single existing file.
+ * A top level `@name { ... }` form. Nothing uses it, and it is kept because
+ * document by example puts everything inside a collection literal, leaving
+ * nowhere to put anything that is not a collection. Claiming the form now
+ * means whatever needs it later arrives without breaking existing files.
+ *
+ * Resolve reports it as unsupported rather than silently dropping it.
  */
 export interface DirectiveNode {
   readonly kind: "directive";

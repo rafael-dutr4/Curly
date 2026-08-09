@@ -198,15 +198,25 @@ users {
 
 ## Reserved
 
-A top level `@name { ... }` form parses and is ignored with a warning. It is
-reserved for declaring access patterns:
+A top level `@name { ... }` form parses and is reported as unsupported:
 
 ```
-@access "user with their last 10 orders" { }
+@something "a label" { }
 ```
 
-Nothing uses it yet. It exists in the grammar now so that adding it later does
-not break files written today.
+Nothing uses it. It exists so that anything which is not a collection has
+somewhere to go later, without breaking files written today.
+
+## What Curly is not
+
+Curly models documents. It does not know your queries, and it does not try to:
+nothing here describes what the application reads, how often, or with which
+index. Those questions matter, and answering them is a different tool.
+
+The consequence worth understanding: Curly can tell you a shape is legal,
+expensive, or unbounded, but it cannot tell you whether embedding was the
+right call for your application. That decision needs the queries, and it stays
+yours.
 
 ## Grammar
 

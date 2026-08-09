@@ -20,9 +20,11 @@ import { DOCUMENT_LIMIT, estimateCollection, formatBytes } from "./size.ts";
  *    so anything that is merely common is a note, and only real trouble is a
  *    warning.
  *
- * Still missing, and deliberately so: the rule that an access pattern has no
- * index to support it. That one needs access patterns to exist, which is the
- * next piece of the language.
+ * What is deliberately out of scope: anything that needs to know the queries.
+ * Whether a field has the right index, whether a shape suits a particular
+ * read, how many round trips a screen costs. Those are real questions and
+ * they are not this tool's. Curly is for getting the model right, and mixing
+ * query planning into it would make both harder to learn.
  */
 
 export type FindingLevel = "warning" | "note";
