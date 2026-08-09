@@ -58,10 +58,19 @@ export function attachEditor(parts: EditorParts, document_: CurlyDocument, revea
     syncScroll();
   };
 
+  /**
+   * The mirror and the gutter are moved, not scrolled.
+   *
+   * Setting their scrollTop looked equivalent and was not: a scroll container
+   * clamps at its own maximum, and the textarea's maximum is larger because
+   * its horizontal scrollbar takes 15px of height that the other two layers
+   * do not lose. Near the bottom of a file with long lines the three drifted
+   * apart by up to that scrollbar, which is the misalignment that was
+   * reported. A transform has no maximum to clamp against.
+   */
   const syncScroll = (): void => {
-    mirror.scrollTop = textarea.scrollTop;
-    mirror.scrollLeft = textarea.scrollLeft;
-    gutter.scrollTop = textarea.scrollTop;
+    mirror.style.transform = `translate(${-textarea.scrollLeft}px, ${-textarea.scrollTop}px)`;
+    gutter.style.transform = `translateY(${-textarea.scrollTop}px)`;
     positionBand();
   };
 

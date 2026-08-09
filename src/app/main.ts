@@ -54,8 +54,8 @@ if (textarea && diagnostics && svg) {
   attachEditor(
     {
       textarea,
-      mirror: document.getElementById("highlight")!,
-      gutter: document.getElementById("gutter")!,
+      mirror: document.getElementById("highlight-code")!,
+      gutter: document.getElementById("gutter-lines")!,
       band: document.getElementById("line-band")!,
       list: diagnostics,
     },

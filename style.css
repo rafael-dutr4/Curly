@@ -150,9 +150,21 @@ body {
    of them shows up immediately as text that does not sit on its line. */
 #source,
 #highlight,
-#gutter div {
+#gutter-lines div {
   font: 13px/20px var(--mono);
   tab-size: 2;
+}
+
+/* The mirror and the gutter never scroll. Their contents are moved instead.
+   A scroll container clamps at its own maximum, and the textarea's maximum is
+   different because its horizontal scrollbar eats 15px of height that the
+   other two do not have. Syncing scrollTop therefore drifts by up to a
+   scrollbar near the bottom of a file with long lines. A transform has no
+   maximum to clamp against. */
+#highlight code,
+#gutter-lines {
+  display: block;
+  will-change: transform;
 }
 
 #gutter {
@@ -165,11 +177,11 @@ body {
   user-select: none;
 }
 
-#gutter div {
+#gutter-lines div {
   opacity: 0.55;
 }
 
-#gutter div.current {
+#gutter-lines div.current {
   opacity: 1;
   color: var(--text);
 }
@@ -195,6 +207,10 @@ body {
   pointer-events: none;
   overflow: hidden;
   color: var(--text);
+}
+
+#highlight code {
+  font: inherit;
 }
 
 /* The textarea keeps the caret, the selection and every native behaviour. Its
