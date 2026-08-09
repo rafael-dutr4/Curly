@@ -89,6 +89,16 @@ body {
   min-height: 0;
 }
 
+/* The diagram is the point of the tool, so it gets the whole window until the
+   text is asked for. */
+#workspace.source-hidden {
+  grid-template-columns: 1fr;
+}
+
+#workspace.source-hidden #source-pane {
+  display: none;
+}
+
 #source-pane {
   display: flex;
   flex-direction: column;
@@ -108,13 +118,23 @@ body {
   tab-size: 2;
 }
 
+/* Diagnostics float over the diagram rather than living in the text pane, so
+   an error is visible whether or not the source is open. */
 #diagnostics {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 1;
   margin: 0;
   padding: 0;
   list-style: none;
-  max-height: 30%;
+  max-height: 40%;
   overflow-y: auto;
-  border-top: 1px solid var(--border);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 18%);
   font-family: var(--mono);
   font-size: 12px;
 }
@@ -124,8 +144,13 @@ body {
 }
 
 #diagnostics li {
-  padding: 5px 12px;
+  padding: 6px 12px;
   border-top: 1px solid var(--border);
+  cursor: pointer;
+}
+
+#diagnostics li:hover {
+  background: var(--bg);
 }
 
 #diagnostics li:first-child {
@@ -301,16 +326,6 @@ marker path {
   stroke: none;
 }
 
-#toolbar select {
-  padding: 4px 6px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--panel);
-  color: var(--text);
-  font: 12px var(--mono);
-  cursor: pointer;
-}
-
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -318,4 +333,104 @@ marker path {
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+#toolbar button[aria-pressed="true"] {
+  border-color: var(--pinned);
+  color: var(--pinned);
+}
+
+/* Dialogs: a chooser for the examples, and a confirmation before work is
+   thrown away. Both are <dialog>, so focus and Escape come from the browser. */
+.curly-dialog {
+  min-width: 320px;
+  max-width: 460px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.5 system-ui, sans-serif;
+}
+
+.curly-dialog::backdrop {
+  background: rgb(0 0 0 / 45%);
+}
+
+.curly-dialog h2 {
+  margin: 0;
+  padding: 14px 16px 0;
+  font-size: 15px;
+}
+
+.curly-dialog p {
+  margin: 6px 0 0;
+  padding: 0 16px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.curly-dialog .choices {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px 0;
+}
+
+.curly-dialog .choice {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.curly-dialog .choice:hover {
+  border-color: var(--pinned);
+}
+
+.curly-dialog .choice strong {
+  display: block;
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+.curly-dialog .choice span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.curly-dialog .actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px;
+}
+
+.curly-dialog .actions button {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--text);
+  font: 13px system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.curly-dialog .actions .danger {
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.curly-dialog .actions button:hover {
+  border-color: var(--pinned);
+}
+
+.curly-dialog .actions .danger:hover {
+  border-color: var(--error);
+  background: var(--error);
+  color: var(--bg);
 }

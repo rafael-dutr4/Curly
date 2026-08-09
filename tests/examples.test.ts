@@ -6,6 +6,7 @@ import { compile } from "../src/lang/compile.ts";
 import { layout } from "../src/layout/layout.ts";
 import { toJsonSchema } from "../src/export/jsonschema.ts";
 import { sampleDocuments } from "../src/export/samples.ts";
+import { EXAMPLES } from "../src/app/examples.ts";
 
 /**
  * The examples are shipped with the app and are the first thing anyone sees,
@@ -60,3 +61,22 @@ for (const file of FILES) {
     assert.ok(source.includes("//"), "no comments at all");
   });
 }
+
+test("every example in the menu exists on disk", () => {
+  // The menu is a hand written list, because a static site cannot read a
+  // directory. This is what stops it drifting away from examples/.
+  for (const example of EXAMPLES) {
+    assert.ok(FILES.includes(example.path.replace("examples/", "")), `${example.path} is missing`);
+    assert.ok(example.name.length > 0);
+    assert.ok(example.description.length > 0, `${example.name} has no description`);
+  }
+});
+
+test("every example on disk is offered in the menu", () => {
+  for (const file of FILES) {
+    assert.ok(
+      EXAMPLES.some((e) => e.path === `examples/${file}`),
+      `examples/${file} is not listed in the menu`,
+    );
+  }
+});

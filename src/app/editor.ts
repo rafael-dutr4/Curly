@@ -19,6 +19,8 @@ export function attachEditor(
   textarea: HTMLTextAreaElement,
   list: HTMLElement,
   document_: CurlyDocument,
+  /** Called before a diagnostic is revealed, so the pane can be opened first. */
+  reveal: () => void = () => {},
 ): void {
   let typing = false;
 
@@ -43,10 +45,10 @@ export function attachEditor(
       const limit = change.source.length;
       textarea.setSelectionRange(Math.min(caret, limit), Math.min(end, limit));
     }
-    renderDiagnostics(list, textarea, change.compilation.diagnostics);
+    renderDiagnostics(list, textarea, change.compilation.diagnostics, reveal);
   });
 
-  renderDiagnostics(list, textarea, document_.compilation().diagnostics);
+  renderDiagnostics(list, textarea, document_.compilation().diagnostics, reveal);
 }
 
 /**
@@ -73,6 +75,7 @@ function renderDiagnostics(
   list: HTMLElement,
   textarea: HTMLTextAreaElement,
   diagnostics: readonly Diagnostic[],
+  reveal: () => void,
 ): void {
   list.replaceChildren(
     ...diagnostics.map((diagnostic) => {
@@ -83,15 +86,16 @@ function renderDiagnostics(
 
       // The span is already the right thing to select, which is the payoff for
       // carrying it from the lexer all the way here.
-      const reveal = (): void => {
+      const select = (): void => {
+        reveal();
         textarea.focus();
         textarea.setSelectionRange(diagnostic.span.start, diagnostic.span.end);
       };
-      item.addEventListener("click", reveal);
+      item.addEventListener("click", select);
       item.addEventListener("keydown", (event: KeyboardEvent) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          reveal();
+          select();
         }
       });
 
