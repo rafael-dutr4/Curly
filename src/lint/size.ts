@@ -53,6 +53,23 @@ export interface SizeEstimate {
 export function estimateCollection(model: Model, collection: ModelCollection): SizeEstimate {
   let assumed = false;
 
+  /**
+   * The collections currently being followed through a reference.
+   *
+   * A reference costs what the target's key costs, and a key is only ever
+   * guessed when there is no `_id` to point at. That guess is the first field,
+   * which can be a reference straight back:
+   *
+   *     users { posts: ref(post)[] }
+   *     post  { author: ref(users) }
+   *
+   * Following that pair costs a stack overflow, which took the editor down as
+   * the second collection was typed. A key on the chain already has a size
+   * being worked out, so re-entering it means the chain is a cycle, and the
+   * honest answer for a key nobody declared is what a key usually is.
+   */
+  const following = new Set<string>();
+
   const bytes = DOCUMENT_OVERHEAD + sumFields(collection.fields);
   return { bytes: Math.round(bytes), assumed };
 
@@ -85,7 +102,12 @@ export function estimateCollection(model: Model, collection: ModelCollection): S
         // A reference stores the target's key, so it costs what that key costs.
         const target = model.byName.get(type.target);
         const key = target?.fields.find((f) => f.name === "_id") ?? target?.fields[0];
-        return key ? sizeOf(key.type, key.count) : SCALAR_BYTES["objectId"]!;
+        if (!key || following.has(type.target)) return SCALAR_BYTES["objectId"]!;
+
+        following.add(type.target);
+        const size = sizeOf(key.type, key.count);
+        following.delete(type.target);
+        return size;
       }
 
       case "scalar":

@@ -187,6 +187,39 @@ test("the estimate is qualified when it had to assume", () => {
   assert.equal(finding, undefined);
 });
 
+/**
+ * A reference costs what the target's key costs, and with no `_id` the key is
+ * guessed as the first field. That guess can point back, and following the
+ * chain used to recurse until the stack ran out — in the editor, while the
+ * second collection was still being typed.
+ */
+test("a collection that references itself is estimated rather than followed forever", () => {
+  const source = "users { posts: ref(users)[] }";
+  assert.doesNotThrow(() => sizeOf(source, "users"));
+  assert.ok(sizeOf(source, "users") > 0);
+});
+
+test("two collections that point at each other are estimated too", () => {
+  const source = "users { posts: ref(post)[] }\npost { author: ref(users) }";
+  assert.doesNotThrow(() => sizeOf(source, "users"));
+  assert.doesNotThrow(() => sizeOf(source, "post"));
+});
+
+test("a reference broken by a cycle costs what a key usually costs", () => {
+  // The cycle is only reached through the guessed key, so what it falls back
+  // to has to be the same as having no key at all to point at.
+  const cycle = sizeOf("users { link: ref(users) }", "users");
+  const keyless = sizeOf("users { link: ref(nowhere) }", "users");
+  assert.equal(cycle, keyless);
+});
+
+test("a reference is still costed by the key it actually points at", () => {
+  // The guard must not fire on a chain that simply passes through twice.
+  const wide = sizeOf("t { other: ref(u) }\nu { _id: string }", "t");
+  const narrow = sizeOf("t { other: ref(u) }\nu { _id: objectId }", "t");
+  assert.ok(wide > narrow, `${wide} should be larger than ${narrow}`);
+});
+
 test("sizes are written for a person to read", () => {
   assert.equal(en(formatBytes(840)), "840 bytes");
   assert.equal(en(formatBytes(2048)), "2.0 KB");
