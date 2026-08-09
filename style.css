@@ -56,6 +56,32 @@ body {
   font-weight: 600;
 }
 
+#toolbar .spacer {
+  flex: 1;
+}
+
+#toolbar button {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--text);
+  font: 12px var(--mono);
+  cursor: pointer;
+}
+
+#toolbar button:hover {
+  border-color: var(--pinned);
+  color: var(--pinned);
+}
+
+#toolbar button:disabled {
+  opacity: 0.45;
+  cursor: default;
+  border-color: var(--border);
+  color: var(--muted);
+}
+
 #workspace {
   flex: 1;
   display: grid;
