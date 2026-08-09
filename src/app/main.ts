@@ -14,6 +14,7 @@ import { attachEditor, attachHistoryShortcuts } from "./editor.ts";
 import { DEFAULT_PROJECT_NAME, nameFromFileName, toFileName } from "./project.ts";
 import { loadBuffer, loadProjectName, loadTheme, saveBuffer, saveProjectName, saveTheme } from "./storage.ts";
 import { STARTER } from "./starter.ts";
+import { attachTooltips } from "./tooltip.ts";
 
 /**
  * Wiring, and nothing else. The pipeline runs in one direction:
@@ -27,6 +28,7 @@ import { STARTER } from "./starter.ts";
  * the document rather than touching the screen directly.
  */
 
+attachTooltips();
 wireTheme();
 
 const textarea = document.getElementById("source") as HTMLTextAreaElement | null;
@@ -111,18 +113,27 @@ if (textarea && diagnostics && svg) {
 
   const buttons = exporters.map(([id, run]) => {
     const button = document.getElementById(id) as HTMLButtonElement | null;
-    button?.addEventListener("click", run);
+    button?.addEventListener("click", (event) => {
+      // Off, but still hoverable and focusable, so the tip can say why.
+      if (button.getAttribute("aria-disabled") === "true") {
+        event.preventDefault();
+        return;
+      }
+      run();
+    });
     // The markup already explains what each export is. Keep that and add the
     // reason on top when the button is off, rather than replacing it.
-    return { button, explanation: button?.title ?? "" };
+    return { button, explanation: button?.dataset.tip ?? "" };
   });
 
   const updateExports = (): void => {
     const broken = model.compilation().diagnostics.some((d) => d.severity === "error");
     for (const { button, explanation } of buttons) {
       if (!button) continue;
-      button.disabled = broken;
-      button.title = broken ? `Fix the errors first. ${explanation}` : explanation;
+      // aria-disabled rather than disabled: a disabled control receives no
+      // pointer events at all, so it could never explain why it is off.
+      button.setAttribute("aria-disabled", String(broken));
+      button.dataset.tip = broken ? `Fix the errors first. ${explanation}` : explanation;
     }
   };
 
@@ -169,7 +180,7 @@ function wireTheme(): void {
   const label = (): void => {
     if (!button) return;
     button.textContent = theme === "dark" ? "Light" : "Dark";
-    button.title = `Switch to the ${otherTheme(theme)} theme`;
+    button.dataset.tip = `Switch to the ${otherTheme(theme)} theme`;
   };
 
   button?.addEventListener("click", () => {

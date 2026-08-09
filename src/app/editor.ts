@@ -191,7 +191,7 @@ function renderList(
         fix.type = "button";
         fix.className = "fix";
         fix.textContent = entry.fix.title;
-        fix.title = "Apply this change to the model";
+        fix.dataset.tip = "Apply this change to the model";
         fix.addEventListener("click", () => applyFix(entry));
         item.append(fix);
       }

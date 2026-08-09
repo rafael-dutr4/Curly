@@ -52,6 +52,7 @@ src/app/
   editor.ts       the numbered, highlighted text pane and the findings list
   highlight.ts    tokens -> coloured HTML, from the lexer
   storage.ts      File System Access API with a download fallback
+  tooltip.ts      one tooltip element, driven by data-tip
 ```
 
 Everything before `src/render/` is pure and testable in Node. Keep it that way: no `document`, no `window` and no measurement APIs outside `src/render/` and `src/app/`.

@@ -115,9 +115,14 @@ body {
   color: var(--pinned);
 }
 
-#toolbar button:disabled {
+#toolbar button[aria-disabled="true"] {
   opacity: 0.45;
   cursor: default;
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+#toolbar button[aria-disabled="true"]:hover {
   border-color: var(--border);
   color: var(--muted);
 }
@@ -752,4 +757,25 @@ marker path {
 .curly-editing.invalid {
   border-color: var(--error);
   color: var(--error);
+}
+
+/* The tooltip. One element, moved to whatever is being explained. Native
+   `title` waits about a second, cannot be styled or placed, and never appears
+   for a control that is switched off, which is when the reason matters most. */
+.curly-tooltip {
+  position: fixed;
+  z-index: 10;
+  max-width: 320px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 26%);
+  font: 12px/1.45 system-ui, sans-serif;
+  pointer-events: none;
+}
+
+.curly-tooltip[hidden] {
+  display: none;
 }
