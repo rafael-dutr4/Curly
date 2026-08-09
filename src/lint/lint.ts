@@ -1,3 +1,4 @@
+import { type Message, message } from "../i18n/messages.ts";
 import { baseFieldType, type FieldType, type Model, type ModelCollection, type ModelField } from "../lang/model.ts";
 import type { Span } from "../lang/token.ts";
 import { insert, remove, type TextEdit } from "../edit/textedit.ts";
@@ -37,14 +38,15 @@ export type FindingLevel = "warning" | "note";
  * button that pretends otherwise would do damage.
  */
 export interface Fix {
-  readonly title: string;
+  readonly title: Message;
   readonly edits: readonly TextEdit[];
 }
 
 export interface Finding {
   readonly rule: string;
   readonly level: FindingLevel;
-  readonly message: string;
+  /** What to say, worded when the list is painted. See `Diagnostic`. */
+  readonly message: Message;
   readonly span: Span;
   readonly fix?: Fix;
 }
@@ -86,9 +88,9 @@ function missingKey(collection: ModelCollection, source: string, findings: Findi
   findings.push({
     rule: "missing-key",
     level: "note",
-    message: `'${collection.name}' has no _id, so a reference to it has to assume one`,
+    message: message("lint.missingKey", { collection: collection.name }),
     span: collection.nameSpan,
-    fix: { title: "Add _id", edits: [insert(first.span.start, `_id: objectId,\n${indent}`)] },
+    fix: { title: message("lint.fix.addId"), edits: [insert(first.span.start, `_id: objectId,\n${indent}`)] },
   });
 }
 
@@ -110,7 +112,7 @@ function walkFields(
       findings.push({
         rule: "deep-nesting",
         level: "note",
-        message: `'${field.name}' is ${depth} levels deep, which is hard to query and usually wants its own collection`,
+        message: message("lint.deepNesting", { field: field.name, depth }),
         span: field.nameSpan,
       });
     }
@@ -125,12 +127,12 @@ function redundantIndex(field: ModelField, findings: Finding[]): void {
   findings.push({
     rule: "redundant-index",
     level: "note",
-    message: `@unique already indexes '${field.name}', so @index adds nothing`,
+    message: message("lint.redundantIndex", { field: field.name }),
     span: annotation?.span ?? field.nameSpan,
     ...(annotation
       ? {
           fix: {
-            title: "Remove @index",
+            title: message("lint.fix.removeIndex"),
             // One character back, to take the space in front of it too.
             edits: [remove({ start: annotation.span.start - 1, end: annotation.span.end })],
           },
@@ -152,16 +154,16 @@ function unboundedArray(collection: ModelCollection, field: ModelField, findings
   // documents and references are the arrays that carry real weight.
   if (base.kind === "scalar") return;
 
-  const what = base.kind === "embedded" ? "documents" : "references";
+  const what = message(base.kind === "embedded" ? "lint.what.documents" : "lint.what.references");
 
   findings.push({
     rule: "unbounded-array",
     level: "note",
-    message: `'${collection.name}.${field.name}' is an array of ${what} with no expected size, so nothing stops it growing past the 16MB document limit. Add @count(n) to say how big it gets.`,
+    message: message("lint.unboundedArray", { collection: collection.name, field: field.name, what }),
     span: field.nameSpan,
     // A starting point, not an answer. Only the modeller knows the real
     // number, but a written guess is easier to argue with than a blank.
-    fix: { title: "Add @count(100)", edits: [insert(field.span.end, " @count(100)")] },
+    fix: { title: message("lint.fix.addCount"), edits: [insert(field.span.end, " @count(100)")] },
   });
 }
 
@@ -174,7 +176,12 @@ function fanOut(collection: ModelCollection, field: ModelField, findings: Findin
   findings.push({
     rule: "fan-out",
     level: "warning",
-    message: `'${collection.name}.${field.name}' holds about ${field.count} references. Storing the link on '${base.target}' instead keeps this document small and the query indexed.`,
+    message: message("lint.fanOut", {
+      collection: collection.name,
+      field: field.name,
+      count: field.count,
+      target: base.target,
+    }),
     span: field.nameSpan,
   });
 }
@@ -185,13 +192,15 @@ function documentSize(model: Model, collection: ModelCollection, findings: Findi
   if (estimate.bytes < LARGE_DOCUMENT) return;
 
   const size = formatBytes(estimate.bytes);
-  const qualifier = estimate.assumed ? " (assuming 10 elements where @count is missing)" : "";
+  // An empty string, not a message: there is nothing to qualify and nothing
+  // to translate when @count is on every array.
+  const qualifier = estimate.assumed ? message("lint.assumed") : "";
 
   if (estimate.bytes >= DOCUMENT_LIMIT) {
     findings.push({
       rule: "document-too-large",
       level: "warning",
-      message: `a '${collection.name}' document is about ${size}${qualifier}, over the 16MB limit. It cannot be written as one document.`,
+      message: message("lint.documentTooLarge", { collection: collection.name, size, qualifier }),
       span: collection.nameSpan,
     });
     return;
@@ -200,7 +209,7 @@ function documentSize(model: Model, collection: ModelCollection, findings: Findi
   findings.push({
     rule: "large-document",
     level: "warning",
-    message: `a '${collection.name}' document is about ${size}${qualifier}, which is heading for the 16MB limit`,
+    message: message("lint.largeDocument", { collection: collection.name, size, qualifier }),
     span: collection.nameSpan,
   });
 }

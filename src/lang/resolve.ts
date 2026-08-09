@@ -1,3 +1,4 @@
+import { type Message, message } from "../i18n/messages.ts";
 import type { AnnotationNode, BlockNode, CollectionNode, FileNode, TypeNode } from "./ast.ts";
 import { type Diagnostic, error, type Suggestion, warning } from "./diagnostic.ts";
 import type { Span } from "./token.ts";
@@ -34,24 +35,21 @@ const SCALAR_SET: ReadonlySet<string> = new Set(SCALAR_TYPES);
 
 export function resolve(file: FileNode): ResolveResult {
   const diagnostics: Diagnostic[] = [];
-  const report = (span: Span, message: string, fix?: Suggestion) => diagnostics.push(error(span, message, fix));
-  const warn = (span: Span, message: string, fix?: Suggestion) => diagnostics.push(warning(span, message, fix));
+  const report = (span: Span, what: Message, fix?: Suggestion) => diagnostics.push(error(span, what, fix));
+  const warn = (span: Span, what: Message, fix?: Suggestion) => diagnostics.push(warning(span, what, fix));
 
   // --- pass one: collect the collection names -----------------------------
   const declared = new Map<string, CollectionNode>();
   for (const entry of file.entries) {
     if (entry.kind === "directive") {
-      warn(
-        entry.span,
-        `'@${entry.name.text}' is reserved for a future version and is ignored for now`,
-      );
+      warn(entry.span, message("resolve.reservedDirective", { name: entry.name.text }));
       continue;
     }
     const existing = declared.get(entry.name.text);
     if (existing) {
       report(
         entry.name.span,
-        `the collection '${entry.name.text}' is already declared on line ${existing.name.span.line}`,
+        message("resolve.duplicateCollection", { name: entry.name.text, line: existing.name.span.line }),
       );
       continue;
     }
@@ -95,7 +93,7 @@ export function resolve(file: FileNode): ResolveResult {
       if (previous) {
         report(
           node.name.span,
-          `the field '${node.name.text}' is already declared on line ${previous.line}`,
+          message("resolve.duplicateField", { name: node.name.text, line: previous.line }),
         );
         continue;
       }
@@ -128,9 +126,11 @@ export function resolve(file: FileNode): ResolveResult {
           report(
             node.name.span,
             suggestion
-              ? `unknown type '${node.name.text}', did you mean '${suggestion}'?`
-              : `unknown type '${node.name.text}'`,
-            suggestion ? { title: `Use '${suggestion}'`, replaceWith: suggestion } : undefined,
+              ? message("resolve.unknownTypeDidYouMean", { name: node.name.text, suggestion })
+              : message("resolve.unknownType", { name: node.name.text }),
+            suggestion
+              ? { title: message("resolve.fix.useType", { suggestion }), replaceWith: suggestion }
+              : undefined,
           );
         }
         return { kind: "scalar", name: node.name.text, known, span: node.span };
@@ -144,9 +144,11 @@ export function resolve(file: FileNode): ResolveResult {
           report(
             node.target.span,
             suggestion
-              ? `no collection named '${target}', did you mean '${suggestion}'?`
-              : `no collection named '${target}'`,
-            suggestion ? { title: `Point at '${suggestion}'`, replaceWith: suggestion } : undefined,
+              ? message("resolve.noCollectionDidYouMean", { name: target, suggestion })
+              : message("resolve.noCollection", { name: target }),
+            suggestion
+              ? { title: message("resolve.fix.pointAt", { suggestion }), replaceWith: suggestion }
+              : undefined,
           );
         } else {
           // Only a reference that points somewhere becomes an edge, so the
@@ -180,8 +182,8 @@ export function resolve(file: FileNode): ResolveResult {
       if (!FIELD_ANNOTATIONS.has(name)) {
         // A warning and not an error: a file written by a newer version of
         // Curly should still open in an older one.
-        warn(annotation.span, `unknown annotation '@${name}', it is ignored`, {
-          title: "Remove it",
+        warn(annotation.span, message("resolve.unknownAnnotation", { name }), {
+          title: message("resolve.fix.removeIt"),
           replaceWith: "",
         });
         continue;
@@ -197,7 +199,7 @@ export function resolve(file: FileNode): ResolveResult {
         case "default": {
           const first = annotation.args[0];
           if (!first || annotation.args.length !== 1) {
-            report(annotation.span, "@default takes exactly one value");
+            report(annotation.span, message("resolve.defaultOneValue"));
             break;
           }
           defaultValue = first.kind === "number" ? first.value : String(first.value);
@@ -205,7 +207,7 @@ export function resolve(file: FileNode): ResolveResult {
         }
         case "enum": {
           if (annotation.args.length === 0) {
-            report(annotation.span, "@enum needs at least one value");
+            report(annotation.span, message("resolve.enumNeedsValues"));
             break;
           }
           enumValues = annotation.args.map((a) => (a.kind === "number" ? a.value : String(a.value)));
@@ -214,7 +216,7 @@ export function resolve(file: FileNode): ResolveResult {
         case "count": {
           const first = annotation.args[0];
           if (annotation.args.length !== 1 || first?.kind !== "number" || first.value < 0) {
-            report(annotation.span, "@count takes one number, the expected size of the array");
+            report(annotation.span, message("resolve.countOneNumber"));
             break;
           }
           count = first.value;
@@ -228,8 +230,8 @@ export function resolve(file: FileNode): ResolveResult {
 
   function readPosition(
     node: CollectionNode,
-    warnAt: (span: Span, message: string) => void,
-    reportAt: (span: Span, message: string) => void,
+    warnAt: (span: Span, what: Message) => void,
+    reportAt: (span: Span, what: Message) => void,
   ): { position: Position | null; positionSpan: Span | null } {
     let position: Position | null = null;
     let positionSpan: Span | null = null;
@@ -237,13 +239,13 @@ export function resolve(file: FileNode): ResolveResult {
     for (const annotation of node.annotations) {
       const name = annotation.name.text;
       if (!COLLECTION_ANNOTATIONS.has(name)) {
-        warnAt(annotation.span, `unknown annotation '@${name}' on a collection, it is ignored`);
+        warnAt(annotation.span, message("resolve.unknownCollectionAnnotation", { name }));
         continue;
       }
 
       const [x, y] = annotation.args;
       if (annotation.args.length !== 2 || x?.kind !== "number" || y?.kind !== "number") {
-        reportAt(annotation.span, "@at takes two numbers, as @at(x, y)");
+        reportAt(annotation.span, message("resolve.atTwoNumbers"));
         continue;
       }
 

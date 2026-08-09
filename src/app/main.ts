@@ -5,16 +5,19 @@ import { attachViewport, fit } from "../render/viewport.ts";
 import { toJsonSchema, toMongoValidators } from "../export/jsonschema.ts";
 import { diagramSvg, svgToPng } from "../export/image.ts";
 import { sampleDocuments } from "../export/samples.ts";
+import { locale, onLocaleChange, t } from "../i18n/locale.ts";
+import { isMessageKey } from "../i18n/messages.ts";
 import { applyTheme, otherTheme, systemTheme, type Theme } from "./appearance.ts";
+import { attachLanguage } from "./language.ts";
 import { createDocument, type CurlyDocument } from "./document.ts";
 import { chooseExample, confirmDiscard } from "./dialog.ts";
 import { downloadBlob, downloadJson } from "./download.ts";
-import { EXAMPLES } from "./examples.ts";
+import { EXAMPLES, pathFor } from "./examples.ts";
 import { type FileHandleLike, openModel, saveModel } from "./files.ts";
 import { attachEditor, attachHistoryShortcuts } from "./editor.ts";
 import { DEFAULT_PROJECT_NAME, nameFromFileName, toFileName } from "./project.ts";
 import { loadBuffer, loadProjectName, loadTheme, saveBuffer, saveProjectName, saveTheme } from "./storage.ts";
-import { STARTER } from "./starter.ts";
+import { starter } from "./starter.ts";
 import { attachTooltips } from "./tooltip.ts";
 
 /**
@@ -29,6 +32,9 @@ import { attachTooltips } from "./tooltip.ts";
  * the document rather than touching the screen directly.
  */
 
+// The language comes first: every label below is read out of the table, so the
+// page must know which one it is speaking before anything is written.
+attachLanguage();
 attachTooltips();
 wireTheme();
 
@@ -37,7 +43,7 @@ const diagnostics = document.getElementById("diagnostics");
 const svg = document.getElementById("diagram") as SVGSVGElement | null;
 
 if (textarea && diagnostics && svg) {
-  const model = createDocument(loadBuffer() ?? STARTER);
+  const model = createDocument(loadBuffer() ?? starter(locale()));
 
   const workspace = document.getElementById("workspace");
   const sourceToggle = document.getElementById("toggle-source") as HTMLButtonElement | null;
@@ -122,7 +128,7 @@ if (textarea && diagnostics && svg) {
           .catch(() => {
             // Nothing to fall back to, and a thrown promise in the console is
             // less use than saying so where the other problems are said.
-            diagnostics.replaceChildren(errorItem("the diagram could not be exported as a PNG"));
+            diagnostics.replaceChildren(errorItem(t("export.pngFailed")));
           });
       },
     ],
@@ -139,20 +145,27 @@ if (textarea && diagnostics && svg) {
       run();
     });
     // The markup already explains what each export is. Keep that and add the
-    // reason on top when the button is off, rather than replacing it.
-    return { button, explanation: button?.dataset.tip ?? "" };
+    // reason on top when the button is off, rather than replacing it. The key
+    // is kept rather than the words, so the explanation is still in the right
+    // language after the interface is switched.
+    return { button, tip: button?.dataset.i18nTip ?? "" };
   });
 
   const updateExports = (): void => {
     const broken = model.compilation().diagnostics.some((d) => d.severity === "error");
-    for (const { button, explanation } of buttons) {
+    for (const { button, tip } of buttons) {
       if (!button) continue;
+      const explanation = isMessageKey(tip) ? t(tip) : "";
       // aria-disabled rather than disabled: a disabled control receives no
       // pointer events at all, so it could never explain why it is off.
       button.setAttribute("aria-disabled", String(broken));
-      button.dataset.tip = broken ? `Fix the errors first. ${explanation}` : explanation;
+      button.dataset.tip = broken ? t("export.blocked", { explanation }) : explanation;
     }
   };
+
+  // The static pass has already put the plain explanation back by now, so this
+  // only has to add the reason a disabled button is disabled.
+  onLocaleChange(updateExports);
 
   /**
    * Typing debounces; anything else draws at once.
@@ -185,7 +198,7 @@ function errorItem(message: string): HTMLLIElement {
   item.className = "error";
   const label = document.createElement("span");
   label.className = "label";
-  label.textContent = "export";
+  label.textContent = t("export.label");
   const text = document.createElement("span");
   text.textContent = message;
   item.append(label, text);
@@ -208,9 +221,12 @@ function wireTheme(): void {
 
   const label = (): void => {
     if (!button) return;
-    button.textContent = theme === "dark" ? "Light" : "Dark";
-    button.dataset.tip = `Switch to the ${otherTheme(theme)} theme`;
+    const target = otherTheme(theme);
+    button.textContent = target === "dark" ? t("theme.dark") : t("theme.light");
+    button.dataset.tip = t("theme.tip", { theme: target === "dark" ? t("theme.name.dark") : t("theme.name.light") });
   };
+
+  onLocaleChange(label);
 
   button?.addEventListener("click", () => {
     theme = otherTheme(theme);
@@ -296,14 +312,11 @@ function wireFiles(model: CurlyDocument, project: ProjectName): void {
   /** True when it is safe to throw the current model away. */
   const mayReplace = async (what: string): Promise<boolean> => {
     if (!isDirty()) return true;
-    return confirmDiscard(
-      "Discard your changes?",
-      `You have edits that are not saved to a file. Loading ${what} replaces them, and this cannot be undone.`,
-    );
+    return confirmDiscard(t("discard.title"), t("discard.detail", { what }));
   };
 
   document.getElementById("file-open")?.addEventListener("click", async () => {
-    if (!(await mayReplace("another model"))) return;
+    if (!(await mayReplace(t("discard.what.model")))) return;
     const opened = await openModel();
     if (!opened) return;
     handle = opened.handle;
@@ -323,12 +336,12 @@ function wireFiles(model: CurlyDocument, project: ProjectName): void {
   document.getElementById("load-example")?.addEventListener("click", async () => {
     // Asked before the chooser opens, so a cancelled confirmation does not
     // leave a second dialog behind it.
-    if (!(await mayReplace("an example"))) return;
+    if (!(await mayReplace(t("discard.what.example")))) return;
 
     const example = await chooseExample(EXAMPLES);
     if (!example) return;
 
-    const response = await fetch(example.path);
+    const response = await fetch(pathFor(example, locale()));
     if (!response.ok) return;
 
     const text = await response.text();

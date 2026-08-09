@@ -14,6 +14,8 @@
  * the tip while it is up so a screen reader reads what a pointer user sees.
  */
 
+import { onLocaleChange } from "../i18n/locale.ts";
+
 /** Long enough not to flicker while the pointer crosses a toolbar. */
 const DELAY = 130;
 
@@ -91,6 +93,13 @@ export function attachTooltips(root: Document = document): void {
   root.addEventListener("focusin", (event) => {
     const target = tipTarget(event.target);
     if (target) show(target);
+  });
+
+  // A tip is a copy of `data-tip`, taken when it was shown. Switching the
+  // language rewrites the attribute underneath it, and a tip left on screen
+  // saying the old thing is the one place the change would look incomplete.
+  onLocaleChange(() => {
+    if (current) tip.textContent = current.dataset.tip ?? "";
   });
 
   root.addEventListener("focusout", hide);

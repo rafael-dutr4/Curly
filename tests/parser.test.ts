@@ -3,6 +3,11 @@ import assert from "node:assert/strict";
 
 import { parse } from "../src/lang/parser.ts";
 import type { CollectionNode, FieldNode, TypeNode } from "../src/lang/ast.ts";
+import { type Message, say } from "../src/i18n/messages.ts";
+
+/** The compiler names a message; a test reads it in English. */
+const en = (message: Message): string => say("en", message);
+
 
 function collections(source: string): CollectionNode[] {
   return parse(source).file.entries.filter((e): e is CollectionNode => e.kind === "collection");
@@ -150,7 +155,7 @@ test("a missing colon is reported and the next field still parses", () => {
   const source = "users {\n  email string,\n  name: string\n}";
   const result = parse(source);
   assert.equal(result.diagnostics.length, 1);
-  assert.match(result.diagnostics[0]!.message, /expected ':' after the field name 'email'/);
+  assert.match(en(result.diagnostics[0]!.message), /expected ':' after the field name 'email'/);
   assert.equal(result.diagnostics[0]!.span.line, 2);
 
   const collection = result.file.entries[0]! as CollectionNode;
@@ -163,7 +168,7 @@ test("a missing colon is reported and the next field still parses", () => {
 test("a missing comma is reported and both fields survive", () => {
   const result = parse("users {\n  a: string\n  b: int\n}");
   assert.equal(result.diagnostics.length, 1);
-  assert.match(result.diagnostics[0]!.message, /expected ',' or '}' after the field 'a'/);
+  assert.match(en(result.diagnostics[0]!.message), /expected ',' or '}' after the field 'a'/);
   assert.deepEqual(fieldNames(result.file.entries[0]! as CollectionNode), ["a", "b"]);
 });
 
@@ -196,7 +201,7 @@ test("junk at the top level is skipped to the next collection", () => {
 
 test("a lexer error is carried through and does not stop parsing", () => {
   const result = parse("users { a: string }\n%\norder { b: int }");
-  assert.ok(result.diagnostics.some((d) => /unexpected character/.test(d.message)));
+  assert.ok(result.diagnostics.some((d) => /unexpected character/.test(en(d.message))));
   assert.deepEqual(
     result.file.entries.map((e) => (e.kind === "collection" ? e.name.text : e.name.text)),
     ["users", "order"],

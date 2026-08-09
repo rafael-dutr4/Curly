@@ -1,5 +1,6 @@
 import { lex } from "./lexer.ts";
 import { type Diagnostic, error } from "./diagnostic.ts";
+import { type Message, message } from "../i18n/messages.ts";
 import { describeKind, type Span, type Token, type TokenKind } from "./token.ts";
 import type {
   AnnotationNode,
@@ -58,13 +59,14 @@ export function parse(source: string): ParseResult {
     return token;
   };
 
-  const report = (span: Span, message: string): void => {
-    diagnostics.push(error(span, message));
+  const report = (span: Span, what: Message): void => {
+    diagnostics.push(error(span, what));
   };
 
-  const expect = (kind: TokenKind, what: string): Token | undefined => {
+  /** Both halves of "expected X, found Y" are messages, worded together later. */
+  const expect = (kind: TokenKind, what: Message): Token | undefined => {
     if (check(kind)) return next();
-    report(peek().span, `expected ${what}, found ${describeKind(peek().kind)}`);
+    report(peek().span, message("parse.expected", { what, found: describeKind(peek().kind) }));
     return undefined;
   };
 
@@ -105,7 +107,7 @@ export function parse(source: string): ParseResult {
     }
   };
 
-  function parseName(what: string): NameNode | undefined {
+  function parseName(what: Message): NameNode | undefined {
     const token = expect("ident", what);
     if (!token) return undefined;
     return { kind: "name", text: token.text, span: token.span };
@@ -124,7 +126,7 @@ export function parse(source: string): ParseResult {
         next();
         return { kind: "nameArg", value: token.text, span: token.span };
       default:
-        report(token.span, `expected an annotation argument, found ${describeKind(token.kind)}`);
+        report(token.span, message("parse.expected", { what: message("parse.want.annotationArgument"), found: describeKind(token.kind) }));
         return undefined;
     }
   }
@@ -141,13 +143,13 @@ export function parse(source: string): ParseResult {
       else if (!check("rparen")) break;
       if (index === before) next();
     }
-    expect("rparen", "')' to close the annotation arguments");
+    expect("rparen", message("parse.want.closeAnnotationArgs"));
     return args;
   }
 
   function parseAnnotation(): AnnotationNode | undefined {
     const at = next(); // '@'
-    const name = parseName("an annotation name after '@'");
+    const name = parseName(message("parse.want.annotationName"));
     if (!name) return undefined;
     const args = parseArgList();
     const end = args.length > 0 ? peek(-1).span : name.span;
@@ -168,9 +170,9 @@ export function parse(source: string): ParseResult {
   /** `ref` `(` name `)` */
   function parseRef(): TypeNode | undefined {
     const keyword = next(); // 'ref'
-    expect("lparen", "'(' after ref");
-    const target = parseName("the name of the referenced collection");
-    const close = expect("rparen", "')' to close ref");
+    expect("lparen", message("parse.want.openRef"));
+    const target = parseName(message("parse.want.refTarget"));
+    const close = expect("rparen", message("parse.want.closeRef"));
     if (!target) return undefined;
     return { kind: "ref", target, span: between(keyword.span, (close ?? target).span) };
   }
@@ -187,7 +189,7 @@ export function parse(source: string): ParseResult {
     if (token.kind === "lbracket") {
       const open = next();
       const element = parseType();
-      const close = expect("rbracket", "']' to close the array");
+      const close = expect("rbracket", message("parse.want.closeArray"));
       if (!element) return undefined;
       return { kind: "array", element, span: between(open.span, (close ?? element).span) };
     }
@@ -198,7 +200,7 @@ export function parse(source: string): ParseResult {
       return { kind: "scalar", name: { kind: "name", text: name.text, span: name.span }, span: name.span };
     }
 
-    report(token.span, `expected a type, found ${describeKind(token.kind)}`);
+    report(token.span, message("parse.expected", { what: message("parse.want.type"), found: describeKind(token.kind) }));
     return undefined;
   }
 
@@ -228,12 +230,12 @@ export function parse(source: string): ParseResult {
   }
 
   function parseField(): FieldNode | undefined {
-    const name = parseName("a field name");
+    const name = parseName(message("parse.want.fieldName"));
     if (!name) {
       syncInBlock();
       return undefined;
     }
-    if (!expect("colon", `':' after the field name '${name.text}'`)) {
+    if (!expect("colon", message("parse.want.colonAfterField", { name: name.text }))) {
       syncInBlock();
       return undefined;
     }
@@ -248,14 +250,14 @@ export function parse(source: string): ParseResult {
   }
 
   function parseBlock(): BlockNode {
-    const open = expect("lbrace", "'{'") ?? peek();
+    const open = expect("lbrace", message("parse.want.openBrace", { brace: "{" })) ?? peek();
     const fields: FieldNode[] = [];
 
     while (!check("rbrace") && !atEnd()) {
       const before = index;
 
       if (!check("ident")) {
-        report(peek().span, `expected a field name, found ${describeKind(peek().kind)}`);
+        report(peek().span, message("parse.expected", { what: message("parse.want.fieldName"), found: describeKind(peek().kind) }));
         if (!syncInBlock()) break;
         if (index === before) next();
         continue;
@@ -267,7 +269,13 @@ export function parse(source: string): ParseResult {
         if (check("comma")) {
           next();
         } else if (!check("rbrace") && !atEnd()) {
-          report(peek().span, `expected ',' or '}' after the field '${field.name.text}'`);
+          report(
+            peek().span,
+            message("parse.expected", {
+              what: message("parse.want.commaOrClose", { brace: "}", name: field.name.text }),
+              found: describeKind(peek().kind),
+            }),
+          );
           // A name here means the user just forgot the comma, so the next field
           // is right there and skipping to one would throw it away. Anything
           // else is unrecognizable and worth skipping.
@@ -278,12 +286,12 @@ export function parse(source: string): ParseResult {
       if (index === before) next();
     }
 
-    const close = expect("rbrace", "'}' to close the block");
+    const close = expect("rbrace", message("parse.want.closeBlock", { brace: "}" }));
     return { kind: "block", fields, span: between(open.span, (close ?? peek(-1)).span) };
   }
 
   function parseCollection(): CollectionNode {
-    const name = parseName("a collection name")!;
+    const name = parseName(message("parse.want.collectionName"))!;
     const annotations = parseAnnotations();
     const block = parseBlock();
     return { kind: "collection", name, annotations, block, span: between(name.span, block.span) };
@@ -291,7 +299,7 @@ export function parse(source: string): ParseResult {
 
   function parseDirective(): DirectiveNode | undefined {
     const at = next(); // '@'
-    const name = parseName("a directive name after '@'");
+    const name = parseName(message("parse.want.directiveName"));
     if (!name) {
       syncTopLevel();
       return undefined;
@@ -322,7 +330,7 @@ export function parse(source: string): ParseResult {
         const directive = parseDirective();
         if (directive) entries.push(directive);
       } else {
-        report(peek().span, `expected a collection name, found ${describeKind(peek().kind)}`);
+        report(peek().span, message("parse.expected", { what: message("parse.want.collectionName"), found: describeKind(peek().kind) }));
         syncTopLevel();
       }
 

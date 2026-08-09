@@ -1,0 +1,39 @@
+// Séries temporais, e o padrão de baldes.
+//
+// O modelo óbvio é um documento por leitura. Ele também é o errado: um bilhão
+// de documentos minúsculos é um bilhão de entradas no índice, e ler uma hora de
+// dados vira um bilhão de buscas. O oposto, um documento por sensor guardando
+// todas as leituras, bate no teto de 16MB em uma semana.
+//
+// O padrão de baldes é o meio-termo: um documento por sensor, por hora. Cada
+// balde é lido de uma vez, o índice tem uma entrada por hora em vez de uma por
+// leitura, e @count diz até onde um balde pode crescer.
+
+sensor @at(40, 40) {
+  _id: objectId,
+  serial: string @unique,
+  place: string,
+  installedAt: date
+}
+
+// Um documento por sensor, por hora. As leituras lá dentro são limitadas pela
+// própria hora, e é isso que torna esta lista segura onde uma lista aberta não
+// seria.
+reading_bucket @at(400, 40) {
+  _id: objectId,
+  sensor: ref(sensor),
+  hour: timestamp @index,
+
+  // Guardados no balde para que um gráfico possa ser desenhado sem abrir as
+  // amostras. Este é o padrão computado: o agregado é escrito uma vez, em vez
+  // de recalculado a cada leitura.
+  count: int,
+  min: double,
+  max: double,
+  mean: double,
+
+  samples: [{
+    at: timestamp,
+    value: double
+  }] @count(60)
+}

@@ -1,0 +1,60 @@
+// Uma loja pequena.
+//
+// Aqui a decisão é o contrário da do blog. Um pedido referencia o cliente em
+// vez de embuti-lo, porque o cliente muda de endereço e você quer a mudança em
+// todo lugar, mas ele embute os itens da linha porque uma linha não tem vida
+// própria fora do seu pedido.
+//
+// As linhas também copiam o nome e o preço do produto. Essa duplicação é
+// deliberada: um pedido é o registro do que foi comprado naquele momento, então
+// ele não pode mudar quando o catálogo mudar.
+
+customer @at(40, 40) {
+  _id: objectId,
+  email: string @unique,
+  name: string,
+  addresses: [{
+    label: string,
+    line1: string,
+    line2: string?,
+    city: string,
+    postcode: string,
+    country: string
+  }]
+}
+
+product @at(40, 440) {
+  _id: objectId,
+  sku: string @unique,
+  name: string,
+  price: decimal,
+  stock: int,
+  attributes: {
+    colour: string?,
+    size: string?
+  }
+}
+
+order @at(420, 40) {
+  _id: objectId,
+  placedBy: ref(customer),
+  placedAt: timestamp @index,
+  state: string @enum(pending, paid, shipped, cancelled) @default("pending"),
+  total: decimal,
+
+  // Copiado de propósito: o que foi comprado, pelo preço da hora da compra.
+  lines: [{
+    product: ref(product),
+    sku: string,
+    name: string,
+    unitPrice: decimal,
+    quantity: int
+  }],
+
+  shipTo: {
+    line1: string,
+    city: string,
+    postcode: string,
+    country: string
+  }
+}

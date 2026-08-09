@@ -1,3 +1,4 @@
+import { message } from "../i18n/messages.ts";
 import type { Span, Token, TokenKind } from "./token.ts";
 import { type Diagnostic, error } from "./diagnostic.ts";
 
@@ -133,7 +134,7 @@ export function lex(source: string): LexResult {
       }
       const span = spanFrom(start, startLine, startCol);
       if (!terminated) {
-        diagnostics.push(error(span, "unterminated string, the closing quote is missing"));
+        diagnostics.push(error(span, message("lex.unterminatedString")));
         push("error", span);
       } else {
         push("string", span);
@@ -152,7 +153,7 @@ export function lex(source: string): LexResult {
     // progress, then keep going.
     index += 1;
     const span = spanFrom(start, startLine, startCol);
-    diagnostics.push(error(span, `unexpected character ${JSON.stringify(c)}`));
+    diagnostics.push(error(span, message("lex.unexpectedCharacter", { char: JSON.stringify(c) })));
     push("error", span);
   }
 

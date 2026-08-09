@@ -1,3 +1,4 @@
+import { t } from "../i18n/locale.ts";
 import { download } from "./download.ts";
 
 /**
@@ -30,9 +31,16 @@ interface FilePickers {
   showSaveFilePicker?(options?: unknown): Promise<FileHandleLike>;
 }
 
-const PICKER_OPTIONS = {
-  types: [{ description: "Curly model", accept: { "text/plain": [".curly"] } }],
-};
+/**
+ * A function rather than a constant: the description is shown by the operating
+ * system's own file dialog, so it has to be produced in whatever language the
+ * interface is speaking at the moment the picker opens.
+ */
+function pickerOptions(): { types: { description: string; accept: Record<string, string[]> }[] } {
+  return {
+    types: [{ description: t("files.pickerDescription"), accept: { "text/plain": [".curly"] } }],
+  };
+}
 
 export interface OpenedFile {
   readonly name: string;
@@ -54,7 +62,7 @@ export async function openModel(): Promise<OpenedFile | null> {
 
   if (picker) {
     try {
-      const [handle] = await picker(PICKER_OPTIONS);
+      const [handle] = await picker(pickerOptions());
       if (!handle) return null;
       const file = await handle.getFile();
       return { name: handle.name, text: await file.text(), handle };
@@ -91,7 +99,7 @@ export async function saveModel(
   const picker = pickers().showSaveFilePicker;
   if (picker) {
     try {
-      const chosen = await picker({ ...PICKER_OPTIONS, suggestedName });
+      const chosen = await picker({ ...pickerOptions(), suggestedName });
       const writable = await chosen.createWritable();
       await writable.write(text);
       await writable.close();

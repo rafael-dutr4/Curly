@@ -13,6 +13,7 @@
 const BUFFER = "curly.buffer";
 const PROJECT = "curly.project";
 const THEME = "curly.theme";
+const LOCALE = "curly.locale";
 
 function read(key: string): string | null {
   try {
@@ -62,4 +63,13 @@ export function loadTheme(): "light" | "dark" | null {
 
 export function saveTheme(theme: "light" | "dark"): void {
   write(THEME, theme);
+}
+
+/** Null means nobody has chosen, so the browser's own languages decide. */
+export function loadLocale(): string | null {
+  return read(LOCALE);
+}
+
+export function saveLocale(locale: string): void {
+  write(LOCALE, locale);
 }

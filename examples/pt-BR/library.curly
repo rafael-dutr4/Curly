@@ -1,0 +1,57 @@
+// Uma coleção, vários formatos: o padrão polimórfico.
+//
+// Uma biblioteca empresta livros, filmes e revistas. Eles compartilham quase
+// tudo o que importa (um título, uma prateleira, se está emprestado) e diferem
+// em alguns campos cada um.
+//
+// Três coleções seriam três consultas para responder "o que está emprestado", e
+// três lugares para mexer quando as regras de empréstimo mudarem. Uma coleção
+// com um campo de tipo responde isso em uma consulta, e os campos que só valem
+// para um tipo são simplesmente opcionais.
+//
+// A troca é honesta: campos opcionais fazem o esquema deixar de dizer quais
+// combinações são válidas. O @enum no tipo é o que mantém isso legível.
+
+item @at(40, 40) {
+  _id: objectId,
+  kind: string @enum(book, film, magazine) @index,
+  title: string @index,
+  shelf: string,
+  onLoanTo: ref(member)?,
+
+  // Só um livro tem estes.
+  author: string?,
+  isbn: string?,
+
+  // Só um filme tem estes.
+  director: string?,
+  minutes: int?,
+
+  // Só uma revista tem este.
+  issue: string?
+}
+
+member @at(430, 40) {
+  _id: objectId,
+  name: string,
+  email: string @unique,
+  joined: date,
+
+  // O padrão de subconjunto: um membro pega centenas de coisas emprestadas ao
+  // longo dos anos, e a tela só mostra as últimas. As recentes são copiadas
+  // aqui, e o histórico completo vive na sua própria coleção.
+  recentLoans: [{
+    item: ref(item),
+    title: string,
+    takenOn: date
+  }] @count(5)
+}
+
+loan @at(430, 400) {
+  _id: objectId,
+  item: ref(item),
+  member: ref(member),
+  takenOn: date @index,
+  dueOn: date,
+  returnedOn: date?
+}

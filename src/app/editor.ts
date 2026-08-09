@@ -1,6 +1,8 @@
 import type { Compilation } from "../lang/compile.ts";
 import type { Span } from "../lang/token.ts";
 import { replace, type TextEdit } from "../edit/textedit.ts";
+import { onLocaleChange, t, tm } from "../i18n/locale.ts";
+import { isMessageKey, type Message } from "../i18n/messages.ts";
 import { type Fix, lint } from "../lint/lint.ts";
 import type { CurlyDocument } from "./document.ts";
 import { highlight, lineAt, lineCount } from "./highlight.ts";
@@ -33,7 +35,7 @@ import { highlight, lineAt, lineCount } from "./highlight.ts";
 interface Entry {
   readonly level: string;
   readonly label: string;
-  readonly message: string;
+  readonly message: Message;
   readonly span: Span;
   readonly fix?: Fix;
 }
@@ -129,6 +131,10 @@ export function attachEditor(parts: EditorParts, document_: CurlyDocument, revea
   });
 
   renderList(list, entriesFor(document_.compilation()), select, applyFix);
+
+  // The list is otherwise only rebuilt when the document changes, and changing
+  // the language does not change the document.
+  onLocaleChange(() => renderList(list, entriesFor(document_.compilation()), select, applyFix));
 }
 
 /**
@@ -161,6 +167,16 @@ function entriesFor(compilation: Compilation): Entry[] {
   return entries;
 }
 
+/**
+ * `error`, `warning` and `note` are words the interface says, so they are
+ * translated. A lint rule name such as `missing-key` is an identifier that
+ * means the same thing in every language, so it is left alone.
+ */
+function translatedLabel(label: string): string {
+  const key = `severity.${label}`;
+  return isMessageKey(key) ? t(key) : label;
+}
+
 function renderList(
   list: HTMLElement,
   entries: readonly Entry[],
@@ -174,14 +190,14 @@ function renderList(
 
       const label = list.ownerDocument.createElement("span");
       label.className = "label";
-      label.textContent = entry.label;
+      label.textContent = translatedLabel(entry.label);
 
       // A button, not a list item with a handler: it is keyboard reachable
       // and announces itself without any aria of our own.
       const message = list.ownerDocument.createElement("button");
       message.type = "button";
       message.className = "message";
-      message.textContent = `line ${entry.span.line}: ${entry.message}`;
+      message.textContent = t("finding.line", { line: entry.span.line, message: entry.message });
       message.addEventListener("click", () => select(entry));
 
       item.append(label, message);
@@ -190,8 +206,8 @@ function renderList(
         const fix = list.ownerDocument.createElement("button");
         fix.type = "button";
         fix.className = "fix";
-        fix.textContent = entry.fix.title;
-        fix.dataset.tip = "Apply this change to the model";
+        fix.textContent = tm(entry.fix.title);
+        fix.dataset.tip = t("finding.fix.tip");
         fix.addEventListener("click", () => applyFix(entry));
         item.append(fix);
       }

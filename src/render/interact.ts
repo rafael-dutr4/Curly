@@ -1,5 +1,6 @@
 import type { CurlyDocument } from "../app/document.ts";
 import * as ops from "../edit/ops.ts";
+import { t } from "../i18n/locale.ts";
 import { completionsFor, isTypeValid, splitType, typeCandidates } from "./complete.ts";
 import { type MenuSection, showMenu } from "./menu.ts";
 import { CLASS, SVG_NS } from "./theme.ts";
@@ -151,25 +152,25 @@ function menuFor(
     const has = (name: string): boolean => field.annotations.some((a) => a.name === name);
 
     sections.push([
-      { label: `Rename “${field.name}”`, run: () => editFieldName(context, input, target) },
-      { label: "Edit type", run: () => editTypeOfRow(context, input, target) },
+      { label: t("menu.renameField", { name: field.name }), run: () => editFieldName(context, input, target) },
+      { label: t("menu.editType"), run: () => editTypeOfRow(context, input, target) },
     ]);
 
     sections.push([
       {
-        label: optional ? "Make required" : "Make optional",
+        label: optional ? t("menu.makeRequired") : t("menu.makeOptional"),
         run: () => run((s, m) => ops.toggleOptional(s, m, fieldRef)),
       },
-      { label: array ? "Make single" : "Make an array", run: () => run((s, m) => ops.toggleArray(s, m, fieldRef)) },
+      { label: array ? t("menu.makeSingle") : t("menu.makeArray"), run: () => run((s, m) => ops.toggleArray(s, m, fieldRef)) },
       {
-        label: has("unique") ? "Remove @unique" : "Add @unique",
+        label: has("unique") ? t("menu.removeUnique") : t("menu.addUnique"),
         run: () =>
           run((s, m) =>
             has("unique") ? ops.removeAnnotation(s, m, fieldRef, "unique") : ops.addAnnotation(s, m, fieldRef, "unique"),
           ),
       },
       {
-        label: has("index") ? "Remove @index" : "Add @index",
+        label: has("index") ? t("menu.removeIndex") : t("menu.addIndex"),
         run: () =>
           run((s, m) =>
             has("index") ? ops.removeAnnotation(s, m, fieldRef, "index") : ops.addAnnotation(s, m, fieldRef, "index"),
@@ -178,9 +179,9 @@ function menuFor(
     ]);
 
     sections.push([
-      { label: "Move up", run: () => run((s, m) => ops.moveField(s, m, fieldRef, -1)) },
-      { label: "Move down", run: () => run((s, m) => ops.moveField(s, m, fieldRef, 1)) },
-      { label: "Delete field", danger: true, run: () => run((s, m) => ops.deleteField(s, m, fieldRef)) },
+      { label: t("menu.moveUp"), run: () => run((s, m) => ops.moveField(s, m, fieldRef, -1)) },
+      { label: t("menu.moveDown"), run: () => run((s, m) => ops.moveField(s, m, fieldRef, 1)) },
+      { label: t("menu.deleteField"), danger: true, run: () => run((s, m) => ops.deleteField(s, m, fieldRef)) },
     ]);
   }
 
@@ -190,7 +191,7 @@ function menuFor(
 
     sections.push([
       {
-        label: `Rename “${collection}”`,
+        label: t("menu.renameCollection", { name: collection }),
         run: () => {
           const title = context.svg.querySelector<SVGTextElement>(
             `[data-collection="${CSS.escape(collection)}"] [data-part="title"]`,
@@ -199,21 +200,21 @@ function menuFor(
         },
       },
       {
-        label: "Add field",
+        label: t("menu.addField"),
         run: () => {
           const found = ops.findContainer(model, container);
           const name = unusedFieldName(found?.fields.map((f) => f.name) ?? []);
           run((s, m) => ops.addField(s, m, container, name, "string"));
         },
       },
-      ...(pinned ? [{ label: "Unpin from this position", run: () => run((s, m) => ops.clearPosition(s, m, collection)) }] : []),
-      { label: "Delete collection", danger: true, run: () => run((s, m) => ops.deleteCollection(s, m, collection)) },
+      ...(pinned ? [{ label: t("menu.unpin"), run: () => run((s, m) => ops.clearPosition(s, m, collection)) }] : []),
+      { label: t("menu.deleteCollection"), danger: true, run: () => run((s, m) => ops.deleteCollection(s, m, collection)) },
     ]);
   }
 
   sections.push([
     {
-      label: "New collection here",
+      label: t("menu.newCollection"),
       run: () => {
         const name = ops.unusedCollectionName(model);
         context.document.run((s, m) => ops.addCollection(s, m, name, where));

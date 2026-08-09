@@ -1,3 +1,4 @@
+import { type Message, message } from "../i18n/messages.ts";
 import { type FieldType, type Model, type ModelCollection, type ModelField } from "../lang/model.ts";
 
 /**
@@ -51,6 +52,7 @@ export interface SizeEstimate {
 
 export function estimateCollection(model: Model, collection: ModelCollection): SizeEstimate {
   let assumed = false;
+
   const bytes = DOCUMENT_OVERHEAD + sumFields(collection.fields);
   return { bytes: Math.round(bytes), assumed };
 
@@ -97,9 +99,12 @@ export function estimateAll(model: Model): Map<string, SizeEstimate> {
   return new Map(model.collections.map((c) => [c.name, estimateCollection(model, c)]));
 }
 
-/** `1.2 MB`, `840 bytes`. For a message a person is going to read. */
-export function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} bytes`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+/**
+ * `1.2 MB`, `840 bytes`. A message rather than a string, because it is read
+ * inside a finding and the unit is a word in whatever language that is read in.
+ */
+export function formatBytes(bytes: number): Message {
+  if (bytes < 1024) return message("size.bytes", { amount: bytes });
+  if (bytes < 1024 * 1024) return message("size.kilobytes", { amount: (bytes / 1024).toFixed(1) });
+  return message("size.megabytes", { amount: (bytes / (1024 * 1024)).toFixed(1) });
 }

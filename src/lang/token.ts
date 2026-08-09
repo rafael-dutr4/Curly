@@ -1,3 +1,5 @@
+import { type Message, message } from "../i18n/messages.ts";
+
 /**
  * A region of the source text.
  *
@@ -42,40 +44,41 @@ export interface Token {
   readonly span: Span;
 }
 
-/** Human readable name for a token kind, used to build error messages. */
-export function describeKind(kind: TokenKind): string {
+/**
+ * What a token is, for an error that has to name one.
+ *
+ * A message rather than a sentence: the parser builds "expected X, found Y"
+ * out of two of these, and neither piece is worded until the list is painted.
+ */
+export function describeKind(kind: TokenKind): Message {
   switch (kind) {
     case "ident":
-      return "a name";
+      return message("token.name");
     case "number":
-      return "a number";
+      return message("token.number");
     case "string":
-      return "a string";
+      return message("token.string");
     case "comment":
-      return "a comment";
-    case "lbrace":
-      return "'{'";
-    case "rbrace":
-      return "'}'";
-    case "lbracket":
-      return "'['";
-    case "rbracket":
-      return "']'";
-    case "lparen":
-      return "'('";
-    case "rparen":
-      return "')'";
-    case "colon":
-      return "':'";
-    case "comma":
-      return "','";
-    case "question":
-      return "'?'";
-    case "at":
-      return "'@'";
+      return message("token.comment");
     case "error":
-      return "an unexpected character";
+      return message("token.unexpected");
     case "eof":
-      return "the end of the file";
+      return message("token.eof");
+    default:
+      return message("token.symbol", { symbol: SYMBOLS[kind] ?? kind });
   }
 }
+
+/** The punctuation, quoted as it is written. The same in every language. */
+const SYMBOLS: Readonly<Record<string, string>> = {
+  lbrace: "{",
+  rbrace: "}",
+  lbracket: "[",
+  rbracket: "]",
+  lparen: "(",
+  rparen: ")",
+  colon: ":",
+  comma: ",",
+  question: "?",
+  at: "@",
+};

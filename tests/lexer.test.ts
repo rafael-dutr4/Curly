@@ -3,6 +3,11 @@ import assert from "node:assert/strict";
 
 import { lex } from "../src/lang/lexer.ts";
 import type { Token, TokenKind } from "../src/lang/token.ts";
+import { type Message, say } from "../src/i18n/messages.ts";
+
+/** The compiler names a message; a test reads it in English. */
+const en = (message: Message): string => say("en", message);
+
 
 /** Tokens without the trailing eof, which every stream has and no test cares about. */
 function tokens(source: string): Token[] {
@@ -122,7 +127,7 @@ test("lexes strings, including escaped quotes", () => {
 test("an unterminated string is an error that stops at the newline", () => {
   const result = lex('@default("oops\nusers {}');
   assert.equal(result.diagnostics.length, 1);
-  assert.match(result.diagnostics[0]!.message, /unterminated string/);
+  assert.match(en(result.diagnostics[0]!.message), /unterminated string/);
   // Lexing continues, so the collection on the next line is still tokenized.
   assert.ok(result.tokens.some((t) => t.text === "users"));
 });
@@ -130,7 +135,7 @@ test("an unterminated string is an error that stops at the newline", () => {
 test("an unexpected character reports and then keeps going", () => {
   const result = lex("users % {}");
   assert.equal(result.diagnostics.length, 1);
-  assert.equal(result.diagnostics[0]!.message, 'unexpected character "%"');
+  assert.equal(en(result.diagnostics[0]!.message), 'unexpected character "%"');
   assert.equal(result.diagnostics[0]!.span.start, 6);
   assert.deepEqual(
     result.tokens.map((t) => t.kind),

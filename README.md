@@ -48,6 +48,7 @@ The text file is the source of truth. The diagram is editable, and every edit is
 - Exports JSON Schema, a MongoDB `$jsonSchema` validator, sample documents, and the diagram as a PNG, all named after the project.
 - Opens and saves `.curly` files, and keeps the current buffer across a reload.
 - Follows the system light or dark theme, and lets you disagree with it.
+- Speaks English or Brazilian Portuguese, starting from the browser's own languages and switchable from the toolbar. Everything is translated, including the errors and the advice, and the worked examples have their comments written in both.
 
 ## Running it
 

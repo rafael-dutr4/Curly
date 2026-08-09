@@ -1,0 +1,40 @@
+// Um blog, modelado do jeito que um banco de documentos pede.
+//
+// A decisão interessante são os comentários. Eles ficam embutidos no post
+// porque um post quase sempre é lido junto com seus comentários, e um post com
+// mil comentários é raro o bastante para conviver com isso. Se deixasse de ser
+// verdade, a saída é o padrão de baldes: os comentários vão para uma coleção
+// própria, chaveada por post, e o post guarda um subconjunto dos mais recentes.
+
+author @at(40, 40) {
+  _id: objectId,
+  handle: string @unique,
+  displayName: string,
+  bio: string?,
+  joinedAt: timestamp
+}
+
+post @at(340, 40) {
+  _id: objectId,
+  slug: string @unique,
+  title: string,
+  body: string,
+  state: string @enum(draft, published, archived) @default("draft"),
+  publishedAt: timestamp?,
+
+  // Embutido, e não referenciado: o nome do autor aparece em todo post, e um
+  // join por dois campos a cada leitura é uma troca ruim. O custo é que
+  // renomear um autor precisa passar pelos posts dele.
+  writtenBy: {
+    author: ref(author),
+    displayName: string
+  },
+
+  tags: string[],
+
+  comments: [{
+    body: string,
+    at: timestamp,
+    by: ref(author)?
+  }]
+}

@@ -6,7 +6,8 @@ import { compile } from "../src/lang/compile.ts";
 import { layout } from "../src/layout/layout.ts";
 import { toJsonSchema } from "../src/export/jsonschema.ts";
 import { sampleDocuments } from "../src/export/samples.ts";
-import { EXAMPLES } from "../src/app/examples.ts";
+import { EXAMPLES, pathFor } from "../src/app/examples.ts";
+import { isMessageKey, LOCALES } from "../src/i18n/messages.ts";
 
 /**
  * The examples are shipped with the app and are the first thing anyone sees,
@@ -67,8 +68,10 @@ test("every example in the menu exists on disk", () => {
   // directory. This is what stops it drifting away from examples/.
   for (const example of EXAMPLES) {
     assert.ok(FILES.includes(example.path.replace("examples/", "")), `${example.path} is missing`);
-    assert.ok(example.name.length > 0);
-    assert.ok(example.description.length > 0, `${example.name} has no description`);
+    // The name and the description are message keys, so the test that every
+    // message is filled in every language covers the words themselves.
+    assert.ok(isMessageKey(example.name), `${example.name} is not a message`);
+    assert.ok(isMessageKey(example.description), `${example.description} is not a message`);
   }
 });
 
@@ -80,3 +83,46 @@ test("every example on disk is offered in the menu", () => {
     );
   }
 });
+
+/**
+ * The translated copies exist so the reasoning in the comments can be read in
+ * the reader's language. Only the comments are translated: the collection and
+ * field names are the model itself, so a translated copy has to describe the
+ * same model, token for token, or the two languages would be teaching two
+ * different things.
+ */
+for (const locale of LOCALES.filter((l) => l !== "en")) {
+  for (const example of EXAMPLES) {
+    const path = pathFor(example, locale);
+
+    test(`${path} exists and models exactly what the English one does`, () => {
+      const translated = readFileSync(path, "utf8");
+      const original = readFileSync(example.path, "utf8");
+      assert.deepEqual(compile(translated).diagnostics, []);
+      assert.deepEqual(withoutComments(translated), withoutComments(original));
+    });
+
+    test(`${path} translates the comments rather than copying them`, () => {
+      const translated = commentsOf(readFileSync(path, "utf8"));
+      const original = commentsOf(readFileSync(example.path, "utf8"));
+      assert.ok(translated.length > 0, "no comments at all");
+      assert.equal(translated.length > 0 && original.length > 0, true);
+      assert.notDeepEqual(translated, original);
+    });
+  }
+}
+
+/** The model with every comment and blank line taken out, for comparing two files. */
+function withoutComments(source: string): string[] {
+  return source
+    .split("\n")
+    .map((line) => line.replace(/\s*\/\/.*$/, "").trimEnd())
+    .filter((line) => line.trim().length > 0);
+}
+
+function commentsOf(source: string): string[] {
+  return source
+    .split("\n")
+    .map((line) => /\/\/(.*)$/.exec(line)?.[1]?.trim() ?? "")
+    .filter((line) => line.length > 0);
+}

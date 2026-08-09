@@ -1,3 +1,4 @@
+import type { Message } from "../i18n/messages.ts";
 import type { Span } from "./token.ts";
 
 export type Severity = "error" | "warning";
@@ -20,22 +21,27 @@ export type Severity = "error" | "warning";
  * patches.
  */
 export interface Suggestion {
-  readonly title: string;
+  readonly title: Message;
   readonly replaceWith: string;
 }
 
 export interface Diagnostic {
   readonly severity: Severity;
-  readonly message: string;
+  /**
+   * What to say, not the words to say it in. The checker is pure and runs the
+   * same in every language, so it names a message and hands over the parts
+   * that vary; `src/app/editor.ts` words it when it paints the list.
+   */
+  readonly message: Message;
   readonly span: Span;
   readonly fix?: Suggestion;
 }
 
-export function error(span: Span, message: string, fix?: Suggestion): Diagnostic {
+export function error(span: Span, message: Message, fix?: Suggestion): Diagnostic {
   return fix ? { severity: "error", message, span, fix } : { severity: "error", message, span };
 }
 
-export function warning(span: Span, message: string, fix?: Suggestion): Diagnostic {
+export function warning(span: Span, message: Message, fix?: Suggestion): Diagnostic {
   return fix ? { severity: "warning", message, span, fix } : { severity: "warning", message, span };
 }
 

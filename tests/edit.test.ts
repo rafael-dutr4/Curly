@@ -5,6 +5,11 @@ import { compile } from "../src/lang/compile.ts";
 import type { Model } from "../src/lang/model.ts";
 import { applyEdits, insert, remove, replace, type TextEdit } from "../src/edit/textedit.ts";
 import * as ops from "../src/edit/ops.ts";
+import { type Message, say } from "../src/i18n/messages.ts";
+
+/** The compiler names a message; a test reads it in English. */
+const en = (message: Message): string => say("en", message);
+
 
 /** Run an operation against a source string and return the new source. */
 function apply(source: string, run: (source: string, model: Model) => TextEdit[]): string {
@@ -348,7 +353,7 @@ test("deleting a referenced collection reports the dangling reference rather tha
 
   const errors = compile(result).diagnostics.filter((d) => d.severity === "error");
   assert.equal(errors.length, 1);
-  assert.match(errors[0]!.message, /no collection named 'order'/);
+  assert.match(en(errors[0]!.message), /no collection named 'order'/);
 });
 
 test("deleting a collection removes it and the blank line it left behind", () => {

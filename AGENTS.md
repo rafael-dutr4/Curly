@@ -13,6 +13,8 @@ This project exists as much for the learning as for the product. Explain the mec
 - **Never regenerate the model file.** Edits are surgical patches against spans. Comments, blank lines and the user's formatting must survive every operation.
 - **The parser never throws.** It returns `{ ast, diagnostics }`. A broken file still renders whatever parsed.
 - **Every token and AST node carries a span.** Nothing may drop span information.
+- **No interface text in a component.** Every word the UI says lives in `src/i18n/messages.ts`, keyed by name and then by locale, so a message with only one language does not typecheck. Static markup carries `data-i18n` keys, and anything built at runtime calls `t()` at the moment it is built.
+- **The pure modules name a message, they do not word one.** A `Diagnostic` and a `Finding` carry a `Message` (a key plus its parts, which may themselves be messages), and `src/app/editor.ts` words it when it paints the list. This is what keeps the compiler and the linter free of locales, and it is why switching the language re-words findings that were produced long before.
 - **Determinism.** Layout, edit operations and the sample generator are pure functions. No `Date.now()` and no `Math.random()` anywhere in `src/`.
 
 ## Repository map
@@ -36,6 +38,9 @@ src/layout/   pure geometry, no DOM
 src/lint/     advice about the model, not about the syntax
   size.ts         BSON size estimation from the model
   lint.ts         the rules
+src/i18n/     what the interface says
+  messages.ts     every message, keyed by name then by locale, and the Message type
+  locale.ts       the current language, t(), tm(), and the change listeners
 src/render/   the DOM lives here and nowhere else
   svg.ts          geometry -> SVG with data-span attributes
   theme.ts        sizes and colors
@@ -53,7 +58,9 @@ src/app/
   editor.ts       the numbered, highlighted text pane and the findings list
   highlight.ts    tokens -> coloured HTML, from the lexer
   storage.ts      File System Access API with a download fallback
+  language.ts     the data-i18n pass over the markup, and the EN/PT-BR toggle
   tooltip.ts      one tooltip element, driven by data-tip
+  examples.ts     the worked examples; examples/<locale>/ holds the translated copies
 ```
 
 Everything before `src/render/` is pure and testable in Node. Keep it that way: no `document`, no `window` and no measurement APIs outside `src/render/` and `src/app/`.

@@ -1,3 +1,4 @@
+import { t } from "../i18n/locale.ts";
 import type { Example } from "./examples.ts";
 
 /**
@@ -56,13 +57,13 @@ export async function confirmDiscard(title: string, detail: string): Promise<boo
 
     const cancel = document.createElement("button");
     cancel.type = "button";
-    cancel.textContent = "Keep editing";
+    cancel.textContent = t("discard.keep");
     cancel.addEventListener("click", () => close(false));
 
     const discard = document.createElement("button");
     discard.type = "button";
     discard.className = "danger";
-    discard.textContent = "Discard and continue";
+    discard.textContent = t("discard.confirm");
     discard.addEventListener("click", () => close(true));
 
     actions.append(cancel, discard);
@@ -79,10 +80,10 @@ export async function confirmDiscard(title: string, detail: string): Promise<boo
 export async function chooseExample(examples: readonly Example[]): Promise<Example | null> {
   const answer = await open((dialog, close) => {
     const heading = document.createElement("h2");
-    heading.textContent = "Load an example";
+    heading.textContent = t("examples.title");
 
     const text = document.createElement("p");
-    text.textContent = "Each one is a small model with its reasoning written in the comments.";
+    text.textContent = t("examples.detail");
 
     const choices = document.createElement("div");
     choices.className = "choices";
@@ -93,10 +94,10 @@ export async function chooseExample(examples: readonly Example[]): Promise<Examp
       button.className = "choice";
 
       const name = document.createElement("strong");
-      name.textContent = example.name;
+      name.textContent = t(example.name);
 
       const description = document.createElement("span");
-      description.textContent = example.description;
+      description.textContent = t(example.description);
 
       button.append(name, description);
       button.addEventListener("click", () => close(example));
@@ -107,7 +108,7 @@ export async function chooseExample(examples: readonly Example[]): Promise<Examp
     actions.className = "actions";
     const cancel = document.createElement("button");
     cancel.type = "button";
-    cancel.textContent = "Cancel";
+    cancel.textContent = t("dialog.cancel");
     cancel.addEventListener("click", () => close(null));
     actions.append(cancel);
 

@@ -16,49 +16,38 @@
         spellcheck="false"
         autocomplete="off"
         aria-label="Project name"
+        data-i18n-aria="project.aria"
+        data-i18n-tip="project.tip"
         data-tip="The name of this model. Exports and saved files are named after it."
       />
 
-      <button type="button" id="file-open" data-tip="Open a .curly model from your computer">Open</button>
-      <button type="button" id="file-save" data-tip="Save the model back to its file, or choose where to put it">
-        Save
-      </button>
-      <button type="button" id="load-example" data-tip="Replace the model with one of the worked examples">
+      <button type="button" id="file-open" data-i18n="toolbar.open" data-i18n-tip="toolbar.open.tip">Open</button>
+      <button type="button" id="file-save" data-i18n="toolbar.save" data-i18n-tip="toolbar.save.tip">Save</button>
+      <button type="button" id="load-example" data-i18n="toolbar.example" data-i18n-tip="toolbar.example.tip">
         Load example
       </button>
 
       <span class="spacer"></span>
 
+      <button type="button" id="toggle-locale" data-tip="Switch the interface to Brazilian Portuguese">PT-BR</button>
       <button type="button" id="toggle-theme" data-tip="Switch between the light and dark theme">Theme</button>
-      <button type="button" id="toggle-source" aria-pressed="false" data-tip="Show the model as text and edit it directly">
+      <button
+        type="button"
+        id="toggle-source"
+        aria-pressed="false"
+        data-i18n="toolbar.source"
+        data-i18n-tip="toolbar.source.tip"
+      >
         Source
       </button>
-      <button
-        type="button"
-        id="export-schema"
-        data-tip="Download one JSON Schema per collection, with required fields, enums and defaults"
-      >
+      <button type="button" id="export-schema" data-i18n="toolbar.schema" data-i18n-tip="toolbar.schema.tip">
         JSON Schema
       </button>
-      <button
-        type="button"
-        id="export-validator"
-        data-tip="Download MongoDB $jsonSchema validators, ready for createCollection"
-      >
+      <button type="button" id="export-validator" data-i18n="toolbar.validator" data-i18n-tip="toolbar.validator.tip">
         Mongo validator
       </button>
-      <button
-        type="button"
-        id="export-png"
-        data-tip="Download the whole diagram as a PNG, at twice the size so the text stays sharp"
-      >
-        PNG
-      </button>
-      <button
-        type="button"
-        id="export-samples"
-        data-tip="Download one example document per collection, to see the shape you would actually query"
-      >
+      <button type="button" id="export-png" data-i18n="toolbar.png" data-i18n-tip="toolbar.png.tip">PNG</button>
+      <button type="button" id="export-samples" data-i18n="toolbar.samples" data-i18n-tip="toolbar.samples.tip">
         Samples
       </button>
     </header>
@@ -76,6 +65,7 @@
             autocapitalize="off"
             wrap="off"
             aria-label="Model source"
+            data-i18n-aria="source.aria"
           ></textarea>
         </div>
       </section>

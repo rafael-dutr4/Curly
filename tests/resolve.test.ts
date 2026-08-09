@@ -3,17 +3,22 @@ import assert from "node:assert/strict";
 
 import { compile } from "../src/lang/compile.ts";
 import { baseFieldType, type FieldType } from "../src/lang/model.ts";
+import { type Message, say } from "../src/i18n/messages.ts";
+
+/** The compiler names a message; a test reads it in English. */
+const en = (message: Message): string => say("en", message);
+
 
 function errors(source: string): string[] {
   return compile(source)
     .diagnostics.filter((d) => d.severity === "error")
-    .map((d) => d.message);
+    .map((d) => en(d.message));
 }
 
 function warnings(source: string): string[] {
   return compile(source)
     .diagnostics.filter((d) => d.severity === "warning")
-    .map((d) => d.message);
+    .map((d) => en(d.message));
 }
 
 function fieldType(source: string, collection: string, field: string): FieldType {
@@ -60,7 +65,7 @@ test("a reference resolves against a collection declared later in the file", () 
 test("an unresolved reference is reported and produces no edge", () => {
   const { model, diagnostics } = compile("users { orders: ref(order) }");
   assert.equal(diagnostics.length, 1);
-  assert.match(diagnostics[0]!.message, /no collection named 'order'/);
+  assert.match(en(diagnostics[0]!.message), /no collection named 'order'/);
   assert.deepEqual(model.edges, []);
 
   const type = baseFieldType(fieldType("users { orders: ref(order) }", "users", "orders"));
@@ -91,7 +96,7 @@ test("an unknown type is kept so the diagram still draws", () => {
 test("a duplicate collection is reported once and does not replace the first", () => {
   const { model, diagnostics } = compile("users { a: string }\nusers { b: int }");
   assert.equal(diagnostics.length, 1);
-  assert.match(diagnostics[0]!.message, /already declared on line 1/);
+  assert.match(en(diagnostics[0]!.message), /already declared on line 1/);
   assert.equal(model.collections.length, 1);
   assert.deepEqual(model.collections[0]!.fields.map((f) => f.name), ["a"]);
 });
@@ -99,7 +104,7 @@ test("a duplicate collection is reported once and does not replace the first", (
 test("a duplicate field is reported and the first one wins", () => {
   const { model, diagnostics } = compile("users {\n  a: string,\n  a: int\n}");
   assert.equal(diagnostics.length, 1);
-  assert.match(diagnostics[0]!.message, /the field 'a' is already declared on line 2/);
+  assert.match(en(diagnostics[0]!.message), /the field 'a' is already declared on line 2/);
   assert.deepEqual(model.collections[0]!.fields.map((f) => f.name), ["a"]);
 });
 
@@ -168,12 +173,12 @@ test("a repeated @at keeps the last one", () => {
 
 test("a top level directive is a warning and is not a collection", () => {
   const { model, diagnostics } = compile('@access "user with orders" { a: string }\nusers { b: int }');
-  assert.match(diagnostics[0]!.message, /reserved for a future version/);
+  assert.match(en(diagnostics[0]!.message), /reserved for a future version/);
   assert.deepEqual(model.collections.map((c) => c.name), ["users"]);
 });
 
 test("parse errors and resolve errors both arrive, in that order", () => {
-  const messages = compile("users {\n  a string,\n  b: nope\n}").diagnostics.map((d) => d.message);
+  const messages = compile("users {\n  a string,\n  b: nope\n}").diagnostics.map((d) => en(d.message));
   assert.match(messages[0]!, /expected ':'/);
   assert.match(messages[1]!, /unknown type 'nope'/);
 });
