@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Curly</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header id="toolbar">
+      <span id="brand">Curly</span>
+    </header>
+
+    <main id="workspace">
+      <section id="source-pane">
+        <textarea id="source" spellcheck="false" autocomplete="off"></textarea>
+        <ul id="diagnostics"></ul>
+      </section>
+
+      <section id="diagram-pane">
+        <svg id="diagram" xmlns="http://www.w3.org/2000/svg"></svg>
+      </section>
+    </main>
+
+    <script type="module" src="dist/app/main.js"></script>
+  </body>
+</html>
