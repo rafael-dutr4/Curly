@@ -1,13 +1,29 @@
 import { compile } from "../lang/compile.ts";
+import { layout } from "../layout/layout.ts";
+import { renderDiagram } from "../render/svg.ts";
+import { attachViewport, fit } from "../render/viewport.ts";
 
-// Entry point. The pipeline is wired here as each stage lands:
-//   source text -> lexer -> parser -> resolve -> layout -> render
-//
-// Only the front end exists so far, so this reports what it understood.
+/**
+ * Entry point. The pipeline, wired end to end:
+ *
+ *   source text -> compile (lex, parse, resolve) -> layout -> render
+ *
+ * There is one piece of state and it is the textarea's string. Everything on
+ * screen is derived from it on every change, which is the whole reason the two
+ * panes cannot disagree.
+ *
+ * The full app shell (undo, autosave, clickable diagnostics) lands in its own
+ * milestone. This is the smallest wiring that draws.
+ */
 
-const STARTER = `users @at(120, 40) {
+const STARTER = `// A model reads like a sample document.
+// Embedding is a nested {} and draws as a box inside a box.
+// A reference is ref(other) and draws as an arrow.
+
+users {
   _id: objectId,
   email: string @unique,
+  createdAt: timestamp,
   profile: {
     name: string,
     avatar: string?
@@ -15,41 +31,60 @@ const STARTER = `users @at(120, 40) {
   orders: ref(order)[]
 }
 
-order @at(480, 40) {
+order {
   _id: objectId,
   total: decimal,
+  placedAt: timestamp @index,
   items: [{
     sku: string,
     qty: int
   }]
 }
+
+item @at(880, 60) {
+  _id: objectId,
+  sku: string @unique,
+  name: string
+}
 `;
 
-const source = document.getElementById("source") as HTMLTextAreaElement | null;
-const diagnostics = document.getElementById("diagnostics");
+const sourceInput = document.getElementById("source") as HTMLTextAreaElement | null;
+const diagnosticList = document.getElementById("diagnostics");
+const svg = document.getElementById("diagram") as SVGSVGElement | null;
 
-function render(text: string): void {
-  const compilation = compile(text);
+if (sourceInput && svg) {
+  sourceInput.value = STARTER;
 
-  if (diagnostics) {
-    diagnostics.replaceChildren(
-      ...compilation.diagnostics.map((d) => {
-        const item = document.createElement("li");
-        item.textContent = `${d.severity} line ${d.span.line}: ${d.message}`;
-        return item;
-      }),
-    );
-  }
+  const rect = svg.getBoundingClientRect();
+  const aspect = rect.height > 0 ? rect.width / rect.height : 1.5;
+  const viewport = attachViewport(svg, fit(layout(compile(STARTER).model), aspect));
 
-  const brand = document.getElementById("brand");
-  if (brand) {
-    const names = compilation.model.collections.map((c) => c.name).join(", ");
-    brand.textContent = names ? `Curly: ${names}` : "Curly";
-  }
+  const draw = (): void => {
+    const compilation = compile(sourceInput.value);
+    renderDiagram(svg, layout(compilation.model));
+    showDiagnostics(compilation.diagnostics);
+  };
+
+  // A full reparse per keystroke is microseconds, but rebuilding the SVG on
+  // every character is wasted work while someone is mid word.
+  let pending: number | undefined;
+  sourceInput.addEventListener("input", () => {
+    if (pending !== undefined) clearTimeout(pending);
+    pending = setTimeout(draw, 150);
+  });
+
+  draw();
+  viewport.set(viewport.get());
 }
 
-if (source) {
-  source.value = STARTER;
-  source.addEventListener("input", () => render(source.value));
-  render(source.value);
+function showDiagnostics(diagnostics: readonly { severity: string; message: string; span: { line: number } }[]): void {
+  if (!diagnosticList) return;
+  diagnosticList.replaceChildren(
+    ...diagnostics.map((d) => {
+      const item = document.createElement("li");
+      item.className = d.severity;
+      item.textContent = `line ${d.span.line}: ${d.message}`;
+      return item;
+    }),
+  );
 }

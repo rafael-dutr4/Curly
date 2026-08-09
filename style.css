@@ -6,7 +6,23 @@
   --muted: #6b6b76;
   --error: #b4243a;
   --warning: #9a6700;
+  --edge: #7a7a86;
+  --pinned: #3f6ea8;
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #17171a;
+    --panel: #202024;
+    --border: #3a3a42;
+    --text: #e8e8ec;
+    --muted: #9a9aa6;
+    --error: #ff8095;
+    --warning: #e0b341;
+    --edge: #86868f;
+    --pinned: #6ea8e8;
+  }
 }
 
 * {
@@ -81,6 +97,23 @@ body {
   display: none;
 }
 
+#diagnostics li {
+  padding: 5px 12px;
+  border-top: 1px solid var(--border);
+}
+
+#diagnostics li:first-child {
+  border-top: 0;
+}
+
+#diagnostics li.error {
+  color: var(--error);
+}
+
+#diagnostics li.warning {
+  color: var(--warning);
+}
+
 #diagram-pane {
   min-width: 0;
   overflow: hidden;
@@ -90,4 +123,65 @@ body {
   width: 100%;
   height: 100%;
   display: block;
+  cursor: grab;
+  touch-action: none;
+}
+
+#diagram.panning {
+  cursor: grabbing;
+}
+
+/* The diagram. The renderer emits structure and geometry only, so every
+   color the drawing has is decided here. */
+
+.curly-frame {
+  fill: var(--bg);
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.curly-header {
+  fill: var(--panel);
+  stroke: none;
+}
+
+.curly-box-nested > .curly-frame {
+  fill: transparent;
+  stroke-dasharray: 3 3;
+}
+
+.curly-box-pinned > .curly-frame {
+  stroke: var(--pinned);
+}
+
+.curly-title,
+.curly-name,
+.curly-type,
+.curly-badge {
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.curly-title {
+  font-weight: 600;
+  fill: var(--text);
+}
+
+.curly-name {
+  fill: var(--text);
+}
+
+.curly-type {
+  fill: var(--muted);
+}
+
+.curly-edge path {
+  stroke: var(--edge);
+  stroke-width: 1.5;
+}
+
+.curly-edges marker path,
+marker path {
+  fill: var(--edge);
+  stroke: none;
 }
