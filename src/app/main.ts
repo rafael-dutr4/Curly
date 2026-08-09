@@ -4,8 +4,9 @@ import { renderDiagram } from "../render/svg.ts";
 import { attachViewport, fit } from "../render/viewport.ts";
 import { toJsonSchema, toMongoValidators } from "../export/jsonschema.ts";
 import { sampleDocuments } from "../export/samples.ts";
-import { createDocument } from "./document.ts";
+import { createDocument, type CurlyDocument } from "./document.ts";
 import { downloadJson } from "./download.ts";
+import { type FileHandleLike, openModel, saveModel } from "./files.ts";
 import { attachEditor, attachHistoryShortcuts } from "./editor.ts";
 import { loadBuffer, saveBuffer } from "./storage.ts";
 import { STARTER } from "./starter.ts";
@@ -55,6 +56,8 @@ if (textarea && diagnostics && svg) {
    * of a word. A gesture has no such problem: there is one of it, and the
    * result has to appear under the pointer immediately.
    */
+  wireFiles(model);
+
   /**
    * Exporting a model that does not resolve would produce a schema with holes
    * in it, so the buttons turn off while there are errors rather than handing
@@ -96,4 +99,42 @@ if (textarea && diagnostics && svg) {
 
   draw();
   updateExports();
+}
+
+/**
+ * Open, Save, and the example menu.
+ *
+ * The open file's handle is remembered so Save writes back to it instead of
+ * dropping a second copy in the downloads folder. Loading anything new clears
+ * the handle, because saving after that should ask where to put it rather
+ * than quietly overwrite the file that happens to still be open.
+ */
+function wireFiles(model: CurlyDocument): void {
+  let handle: FileHandleLike | null = null;
+  let name = "model.curly";
+
+  document.getElementById("file-open")?.addEventListener("click", async () => {
+    const opened = await openModel();
+    if (!opened) return;
+    handle = opened.handle;
+    name = opened.name;
+    model.set(opened.text, "load");
+  });
+
+  document.getElementById("file-save")?.addEventListener("click", async () => {
+    handle = await saveModel(model.source(), handle, name);
+  });
+
+  const examples = document.getElementById("examples") as HTMLSelectElement | null;
+  examples?.addEventListener("change", async () => {
+    const path = examples.value;
+    examples.value = "";
+    if (!path) return;
+
+    const response = await fetch(path);
+    if (!response.ok) return;
+    handle = null;
+    name = path.split("/").at(-1) ?? "model.curly";
+    model.set(await response.text(), "load");
+  });
 }

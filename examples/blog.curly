@@ -1,0 +1,40 @@
+// A blog, modelled the way a document database wants it.
+//
+// The interesting decision is comments. They are embedded in the post because
+// a post is almost always read with its comments, and a post with a thousand
+// comments is rare enough to live with. If that stopped being true, the fix
+// is the bucket pattern: comments move to their own collection, keyed by post,
+// and the post keeps a subset of the most recent ones.
+
+author @at(40, 40) {
+  _id: objectId,
+  handle: string @unique,
+  displayName: string,
+  bio: string?,
+  joinedAt: timestamp
+}
+
+post @at(340, 40) {
+  _id: objectId,
+  slug: string @unique,
+  title: string,
+  body: string,
+  state: string @enum(draft, published, archived) @default("draft"),
+  publishedAt: timestamp?,
+
+  // Embedded, not referenced: an author's name is shown with every post, and
+  // a join for two fields on every read is a bad trade. The cost is that
+  // renaming an author has to touch their posts.
+  writtenBy: {
+    author: ref(author),
+    displayName: string
+  },
+
+  tags: string[],
+
+  comments: [{
+    body: string,
+    at: timestamp,
+    by: ref(author)?
+  }]
+}

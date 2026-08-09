@@ -1,0 +1,60 @@
+// A small shop.
+//
+// This one shows the opposite decision from the blog. An order references the
+// customer rather than embedding them, because a customer changes their
+// address and you want the change everywhere, but it embeds the line items
+// because a line has no life of its own outside its order.
+//
+// The line items also copy the product name and price. That is deliberate
+// duplication: an order is a record of what was bought at the time, so it must
+// not change when the catalogue does.
+
+customer @at(40, 40) {
+  _id: objectId,
+  email: string @unique,
+  name: string,
+  addresses: [{
+    label: string,
+    line1: string,
+    line2: string?,
+    city: string,
+    postcode: string,
+    country: string
+  }]
+}
+
+product @at(40, 372) {
+  _id: objectId,
+  sku: string @unique,
+  name: string,
+  price: decimal,
+  stock: int,
+  attributes: {
+    colour: string?,
+    size: string?
+  }
+}
+
+order @at(420, 40) {
+  _id: objectId,
+  placedBy: ref(customer),
+  placedAt: timestamp @index,
+  state: string @enum(pending, paid, shipped, cancelled) @default("pending"),
+  total: decimal,
+
+  // Copied on purpose: what was bought, at the price it was bought for.
+  lines: [{
+    product: ref(product),
+    sku: string,
+    name: string,
+    unitPrice: decimal,
+    quantity: int
+  }],
+
+  shipTo: {
+    line1: string,
+    city: string,
+    postcode: string,
+    country: string
+  }
+}

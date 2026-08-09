@@ -9,6 +9,14 @@
   <body>
     <header id="toolbar">
       <span id="brand">Curly</span>
+      <button type="button" id="file-open">Open</button>
+      <button type="button" id="file-save">Save</button>
+      <label class="visually-hidden" for="examples">Load an example</label>
+      <select id="examples">
+        <option value="">Examples…</option>
+        <option value="examples/blog.curly">Blog</option>
+        <option value="examples/ecommerce.curly">Shop</option>
+      </select>
       <span class="spacer"></span>
       <button type="button" id="export-schema">JSON Schema</button>
       <button type="button" id="export-validator">Mongo validator</button>
