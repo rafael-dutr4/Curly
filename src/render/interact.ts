@@ -1,5 +1,6 @@
 import type { CurlyDocument } from "../app/document.ts";
 import * as ops from "../edit/ops.ts";
+import { type MenuSection, showMenu } from "./menu.ts";
 import { CLASS, SVG_NS } from "./theme.ts";
 import { screenToModel, type ViewBox } from "./viewport.ts";
 
@@ -22,8 +23,12 @@ import { screenToModel, type ViewBox } from "./viewport.ts";
  *     data-action        "delete-field" | "delete-collection" | "add-field" | "link"
  */
 
-/** How far the pointer must travel before a press becomes a drag rather than a click. */
-const DRAG_THRESHOLD = 3;
+/**
+ * How far the pointer must travel, in screen pixels, before a press counts as
+ * a drag rather than a click. A hand resting on a mouse moves a pixel or two,
+ * so anything smaller makes clicking unreliable.
+ */
+const DRAG_THRESHOLD = 5;
 
 /**
  * Capturing keeps a drag alive when the pointer leaves the element, which is
@@ -40,6 +45,14 @@ function capturePointer(element: Element, pointerId: number): void {
     element.setPointerCapture(pointerId);
   } catch {
     // Degrades to an uncaptured drag.
+  }
+}
+
+function releasePointer(element: Element, pointerId: number): void {
+  try {
+    if (element.hasPointerCapture(pointerId)) element.releasePointerCapture(pointerId);
+  } catch {
+    // Already gone, which is the state we wanted.
   }
 }
 
@@ -95,6 +108,142 @@ export function attachInteraction(context: InteractionContext): void {
     if (part === "name" || part === "embedded-title") return editFieldName(context, input, target);
     if (part === "type") return editFieldType(context, input, target);
   });
+
+  svg.addEventListener("contextmenu", (event: MouseEvent) => {
+    event.preventDefault();
+    const target = event.target as Element | null;
+    if (!target) return;
+
+    const bounds = context.surface.getBoundingClientRect();
+    const at = { x: event.clientX - bounds.left, y: event.clientY - bounds.top };
+    const where = screenToModel(context.view(), context.svg.getBoundingClientRect(), event.clientX, event.clientY);
+
+    showMenu(context.surface, at, menuFor(context, input, target, where));
+  });
+}
+
+/**
+ * What the right button offers depends on what it was pressed on: a field, a
+ * collection, or the empty canvas. Each level adds the one above it, so the
+ * menu on a field can still create a collection.
+ */
+function menuFor(
+  context: InteractionContext,
+  input: HTMLInputElement,
+  target: Element,
+  where: { x: number; y: number },
+): MenuSection[] {
+  const run = (operation: Parameters<CurlyDocument["run"]>[0]): void => {
+    context.document.run(operation);
+  };
+
+  const sections: MenuSection[] = [];
+  const model = context.document.compilation().model;
+
+  const fieldRef = fieldRefOf(target);
+  const field = fieldRef ? ops.findField(model, fieldRef) : null;
+  const collection = collectionOf(target);
+
+  if (fieldRef && field) {
+    const optional = ops.hasWrapper(field.type, "optional");
+    const array = ops.hasWrapper(field.type, "array");
+    const has = (name: string): boolean => field.annotations.some((a) => a.name === name);
+
+    sections.push([
+      { label: `Rename “${field.name}”`, run: () => editFieldName(context, input, target) },
+      { label: "Edit type", run: () => editTypeOfRow(context, input, target) },
+    ]);
+
+    sections.push([
+      {
+        label: optional ? "Make required" : "Make optional",
+        run: () => run((s, m) => ops.toggleOptional(s, m, fieldRef)),
+      },
+      { label: array ? "Make single" : "Make an array", run: () => run((s, m) => ops.toggleArray(s, m, fieldRef)) },
+      {
+        label: has("unique") ? "Remove @unique" : "Add @unique",
+        run: () =>
+          run((s, m) =>
+            has("unique") ? ops.removeAnnotation(s, m, fieldRef, "unique") : ops.addAnnotation(s, m, fieldRef, "unique"),
+          ),
+      },
+      {
+        label: has("index") ? "Remove @index" : "Add @index",
+        run: () =>
+          run((s, m) =>
+            has("index") ? ops.removeAnnotation(s, m, fieldRef, "index") : ops.addAnnotation(s, m, fieldRef, "index"),
+          ),
+      },
+    ]);
+
+    sections.push([
+      { label: "Move up", run: () => run((s, m) => ops.moveField(s, m, fieldRef, -1)) },
+      { label: "Move down", run: () => run((s, m) => ops.moveField(s, m, fieldRef, 1)) },
+      { label: "Delete field", danger: true, run: () => run((s, m) => ops.deleteField(s, m, fieldRef)) },
+    ]);
+  }
+
+  if (collection) {
+    const pinned = Boolean(model.byName.get(collection)?.positionSpan);
+    const container = { collection, path: containerPathOf(target) };
+
+    sections.push([
+      {
+        label: `Rename “${collection}”`,
+        run: () => {
+          const title = context.svg.querySelector<SVGTextElement>(
+            `[data-collection="${CSS.escape(collection)}"] [data-part="title"]`,
+          );
+          if (title) editCollectionName(context, input, title);
+        },
+      },
+      {
+        label: "Add field",
+        run: () => {
+          const found = ops.findContainer(model, container);
+          const name = unusedFieldName(found?.fields.map((f) => f.name) ?? []);
+          run((s, m) => ops.addField(s, m, container, name, "string"));
+        },
+      },
+      ...(pinned ? [{ label: "Unpin from this position", run: () => run((s, m) => ops.clearPosition(s, m, collection)) }] : []),
+      { label: "Delete collection", danger: true, run: () => run((s, m) => ops.deleteCollection(s, m, collection)) },
+    ]);
+  }
+
+  sections.push([
+    {
+      label: "New collection here",
+      run: () => {
+        const name = ops.unusedCollectionName(model);
+        context.document.run((s, m) => ops.addCollection(s, m, name, where));
+      },
+    },
+  ]);
+
+  return sections;
+}
+
+/**
+ * Open the type editor for the row that was clicked, whichever part of the row
+ * the pointer actually landed on. The menu is opened from a name as often as
+ * from a type, and it should not matter which.
+ */
+function editTypeOfRow(context: InteractionContext, input: HTMLInputElement, target: Element): void {
+  const type = target.closest("[data-path]")?.querySelector('[data-part="type"]');
+  if (type) editFieldType(context, input, type);
+}
+
+function unusedFieldName(taken: readonly string[]): string {
+  if (!taken.includes("field")) return "field";
+  let n = 2;
+  while (taken.includes(`field${n}`)) n += 1;
+  return `field${n}`;
+}
+
+/** The container a click landed in: the collection, or an embedded document inside it. */
+function containerPathOf(target: Element): string[] {
+  const box = target.closest<SVGGElement>("[data-container-path]");
+  return splitPath(box?.dataset.containerPath ?? null);
 }
 
 // --- inline editing -------------------------------------------------------
@@ -233,15 +382,30 @@ function startDragging(context: InteractionContext, event: PointerEvent, box: SV
   const origin = translateOf(box);
   const rect = context.svg.getBoundingClientRect();
   const start = screenToModel(context.view(), rect, event.clientX, event.clientY);
+  const startedAt = { x: event.clientX, y: event.clientY };
 
   let moved = false;
-  capturePointer(context.svg, event.pointerId);
 
   const move = (moveEvent: PointerEvent): void => {
     const now = screenToModel(context.view(), rect, moveEvent.clientX, moveEvent.clientY);
     const dx = now.x - start.x;
     const dy = now.y - start.y;
-    if (!moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+
+    // The threshold is in screen pixels, not model units. In model units the
+    // same small hand movement counts as a drag when zoomed out and as a click
+    // when zoomed in, which is exactly the kind of thing that makes an editor
+    // feel like it works only sometimes.
+    const travelled = Math.hypot(moveEvent.clientX - startedAt.x, moveEvent.clientY - startedAt.y);
+    if (!moved && travelled < DRAG_THRESHOLD) return;
+
+    if (!moved) {
+      // Captured here rather than on pointerdown, and this matters. Capturing
+      // retargets every later event to the capture element, so the `click`
+      // that follows a simple press would arrive on the svg root instead of on
+      // the text that was pressed, and inline editing would never open.
+      // Capture only once this is definitely a drag and not a click.
+      capturePointer(context.svg, moveEvent.pointerId);
+    }
     moved = true;
     box.setAttribute("transform", `translate(${origin.x + dx}, ${origin.y + dy})`);
   };
@@ -251,6 +415,7 @@ function startDragging(context: InteractionContext, event: PointerEvent, box: SV
     context.svg.removeEventListener("pointerup", up);
     context.svg.removeEventListener("pointercancel", up);
     if (!moved) return; // a press that never moved is a click, handled elsewhere
+    releasePointer(context.svg, upEvent.pointerId);
 
     const end = screenToModel(context.view(), rect, upEvent.clientX, upEvent.clientY);
     context.document.run((s, m) =>
@@ -293,6 +458,7 @@ function startLinking(context: InteractionContext, event: PointerEvent, target: 
     context.svg.removeEventListener("pointermove", move);
     context.svg.removeEventListener("pointerup", up);
     context.svg.removeEventListener("pointercancel", up);
+    releasePointer(context.svg, upEvent.pointerId);
     line.remove();
 
     // The pointer is captured, so the event target is the svg. Ask the document
