@@ -53,6 +53,8 @@ export interface RefFieldType {
   /** False when no collection of that name exists. The edge is then not drawn. */
   readonly resolved: boolean;
   readonly span: Span;
+  /** Just the name inside `ref(...)`, so renaming a collection can rewrite it. */
+  readonly targetSpan: Span;
 }
 
 export interface ArrayFieldType {
@@ -67,11 +69,18 @@ export interface OptionalFieldType {
   readonly span: Span;
 }
 
+/** An annotation as written, kept so the edit layer can remove exactly its text. */
+export interface ModelAnnotation {
+  readonly name: string;
+  readonly span: Span;
+}
+
 export interface ModelField {
   readonly name: string;
   readonly nameSpan: Span;
   readonly span: Span;
   readonly type: FieldType;
+  readonly annotations: readonly ModelAnnotation[];
   readonly unique: boolean;
   readonly indexed: boolean;
   readonly defaultValue: string | number | null;

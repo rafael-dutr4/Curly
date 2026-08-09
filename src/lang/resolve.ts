@@ -107,6 +107,7 @@ export function resolve(file: FileNode): ResolveResult {
         nameSpan: node.name.span,
         span: node.span,
         type: resolveType(node.type, owner, node.name.text),
+        annotations: node.annotations.map((a) => ({ name: a.name.text, span: a.span })),
         unique: flags.unique,
         indexed: flags.indexed,
         defaultValue: flags.defaultValue,
@@ -149,7 +150,7 @@ export function resolve(file: FileNode): ResolveResult {
           // layout graph never contains a dangling node.
           edges.push({ from: owner, to: target, fieldName, span: node.span });
         }
-        return { kind: "ref", target, resolved, span: node.span };
+        return { kind: "ref", target, resolved, span: node.span, targetSpan: node.target.span };
       }
 
       case "embedded":
