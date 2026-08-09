@@ -52,19 +52,26 @@ export function inlineVariables(css: string, lookup: (name: string) => string): 
 export function svgDocument(options: {
   readonly body: string;
   readonly css: string;
+  /** The drawing's own origin, which is not zero once a box has been dragged. */
+  readonly minX?: number;
+  readonly minY?: number;
   readonly width: number;
   readonly height: number;
   readonly background: string | null;
 }): string {
   const { body, css, width, height, background } = options;
+  const x = Math.floor(options.minX ?? 0);
+  const y = Math.floor(options.minY ?? 0);
   const w = Math.max(1, Math.ceil(width));
   const h = Math.max(1, Math.ceil(height));
   // A picture with no background is unreadable the moment it is pasted onto a
   // page the opposite colour, so the theme's own background is painted in.
-  const backdrop = background ? `<rect width="${w}" height="${h}" fill="${background}"/>` : "";
+  // It has to start at the drawing's origin, not at zero, or it covers the
+  // wrong rectangle the moment that origin is negative.
+  const backdrop = background ? `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${background}"/>` : "";
 
   return [
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="${x} ${y} ${w} ${h}">`,
     `<style>${css}</style>`,
     backdrop,
     body,
@@ -118,6 +125,8 @@ export function diagramSvg(svg: SVGSVGElement, drawing: Layout, background: stri
   return svgDocument({
     body: copy.innerHTML,
     css: diagramCss(svg.ownerDocument),
+    minX: drawing.minX,
+    minY: drawing.minY,
     width: drawing.width,
     height: drawing.height,
     background,

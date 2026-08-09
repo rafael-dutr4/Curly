@@ -69,13 +69,21 @@ export function panBy(view: ViewBox, dx: number, dy: number): ViewBox {
   return { ...view, minX: view.minX - dx, minY: view.minY - dy };
 }
 
-/** The view that shows the whole drawing, keeping the element's aspect ratio. */
+/**
+ * The view that shows the whole drawing, keeping the element's aspect ratio.
+ *
+ * The origin comes from the drawing rather than being assumed to be zero,
+ * because a box dragged up or left sits at a negative coordinate and would
+ * otherwise be framed out of its own diagram.
+ */
 export function fit(drawing: Layout, aspect: number): ViewBox {
   const width = Math.max(drawing.width, MARGIN * 4);
   const height = Math.max(drawing.height, MARGIN * 4);
+  const minX = drawing.minX;
+  const minY = drawing.minY;
   // Grow one axis rather than shrink the other, so nothing is ever cut off.
-  if (width / height > aspect) return { minX: 0, minY: 0, width, height: width / aspect };
-  return { minX: 0, minY: 0, width: height * aspect, height };
+  if (width / height > aspect) return { minX, minY, width, height: width / aspect };
+  return { minX, minY, width: height * aspect, height };
 }
 
 /**

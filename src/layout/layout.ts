@@ -88,7 +88,17 @@ export interface LayoutEdge {
 export interface Layout {
   readonly boxes: readonly LayoutBox[];
   readonly edges: readonly LayoutEdge[];
-  /** Bounds of the drawing, including the margin, for the initial viewBox. */
+  /**
+   * Bounds of the drawing, including the margin.
+   *
+   * The origin is not always zero. `@at` takes whatever coordinates it is
+   * given, and dragging a box up or left produces negative ones, so anything
+   * that frames the drawing has to start at `minX, minY` rather than assuming
+   * the content begins at the top left corner. Assuming it does is how the
+   * top of a model ends up cut off a picture.
+   */
+  readonly minX: number;
+  readonly minY: number;
   readonly width: number;
   readonly height: number;
 }
@@ -107,14 +117,30 @@ export function layout(model: Model): Layout {
     edges.push(connect(from, to, edge.fieldName, edge.span));
   }
 
-  let right = 0;
-  let bottom = 0;
+  let left = Infinity;
+  let top = Infinity;
+  let right = -Infinity;
+  let bottom = -Infinity;
   for (const box of boxes) {
+    left = Math.min(left, box.x);
+    top = Math.min(top, box.y);
     right = Math.max(right, box.x + box.width);
     bottom = Math.max(bottom, box.y + box.height);
   }
 
-  return { boxes, edges, width: right + MARGIN, height: bottom + MARGIN };
+  // An empty model still has to describe some rectangle.
+  if (boxes.length === 0) {
+    left = 0;
+    top = 0;
+    right = 0;
+    bottom = 0;
+  }
+
+  // A drawing laid out automatically starts at MARGIN, so its origin comes
+  // out at zero and nothing changes. Only a dragged box moves it.
+  const minX = left - MARGIN;
+  const minY = top - MARGIN;
+  return { boxes, edges, minX, minY, width: right + MARGIN - minX, height: bottom + MARGIN - minY };
 }
 
 // --- sizing ---------------------------------------------------------------

@@ -184,8 +184,35 @@ test("the drawing bounds cover every box plus the margin", () => {
   const source = "users @at(600, 400) { a: int }";
   const drawing = layout(compile(source).model);
   const users = drawing.boxes[0]!;
-  assert.equal(drawing.width, users.x + users.width + MARGIN);
-  assert.equal(drawing.height, users.y + users.height + MARGIN);
+  assert.equal(drawing.minX, users.x - MARGIN);
+  assert.equal(drawing.minY, users.y - MARGIN);
+  assert.equal(drawing.minX + drawing.width, users.x + users.width + MARGIN);
+  assert.equal(drawing.minY + drawing.height, users.y + users.height + MARGIN);
+});
+
+test("an automatic layout still starts at the origin", () => {
+  // Nothing changes for a model nobody has dragged: placement begins at
+  // MARGIN, so the margin subtracted back off lands exactly on zero.
+  const drawing = layout(compile("users { a: int }\norder { b: int }").model);
+  assert.equal(drawing.minX, 0);
+  assert.equal(drawing.minY, 0);
+});
+
+test("a box dragged above or left of the origin is still inside the bounds", () => {
+  // This is what cut the top off an exported picture: @at takes the
+  // coordinates it is given, and dragging upwards makes them negative.
+  const drawing = layout(compile("a @at(-120, -60) { x: int }\nb @at(300, 200) { y: int }").model);
+  const highest = drawing.boxes.find((box) => box.name === "a")!;
+
+  assert.equal(drawing.minX, -160, "the margin sits outside the leftmost box");
+  assert.equal(drawing.minY, -100);
+  for (const box of drawing.boxes) {
+    assert.ok(box.x >= drawing.minX, `${box.name} starts left of the frame`);
+    assert.ok(box.y >= drawing.minY, `${box.name} starts above the frame`);
+    assert.ok(box.x + box.width <= drawing.minX + drawing.width, `${box.name} runs past the right`);
+    assert.ok(box.y + box.height <= drawing.minY + drawing.height, `${box.name} runs past the bottom`);
+  }
+  assert.ok(highest.y < 0, "the fixture really does use a negative coordinate");
 });
 
 test("an empty model has no boxes and no edges", () => {
@@ -232,4 +259,19 @@ test("the reserved space does not change when a box is hovered, because it is al
   // Guarded by construction: the geometry has no notion of hover at all.
   const empty = box("users {}", "users");
   assert.equal(empty.addRow.y, HEADER_HEIGHT);
+});
+
+test("a picture of a dragged model would contain all of it", () => {
+  // The export frames the drawing with viewBox="minX minY width height", so
+  // this is the arithmetic that decides whether anything is cut off.
+  const source = "up @at(0, -200) { a: int }\nleft @at(-300, 0) { b: int }\nfar @at(900, 700) { c: int }";
+  const drawing = layout(compile(source).model);
+
+  for (const box of drawing.boxes) {
+    assert.ok(box.x >= drawing.minX && box.y >= drawing.minY, `${box.name} above or left of the frame`);
+    assert.ok(
+      box.x + box.width <= drawing.minX + drawing.width && box.y + box.height <= drawing.minY + drawing.height,
+      `${box.name} past the right or bottom of the frame`,
+    );
+  }
 });

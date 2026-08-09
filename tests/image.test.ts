@@ -85,3 +85,18 @@ test("an empty model still produces a valid picture", () => {
   assert.match(svg, /width="1"/, "never zero sized, which no encoder accepts");
   assert.match(svg, /height="1"/);
 });
+
+test("the frame starts at the drawing's own origin, not at zero", () => {
+  // A box dragged up or left has negative coordinates, and a viewBox that
+  // began at zero simply cut them off. This is the bug that lost the top of
+  // an exported model.
+  const svg = svgDocument({ body: "<g/>", css: "", minX: -160, minY: -100, width: 500, height: 400, background: "#fff" });
+  assert.match(svg, /viewBox="-160 -100 500 400"/);
+  assert.match(svg, /<rect x="-160" y="-100" width="500" height="400"/, "the backdrop covers the same rectangle");
+  assert.match(svg, /width="500"/, "the file is still the size of the content");
+});
+
+test("an origin at zero is written plainly, as before", () => {
+  const svg = svgDocument({ body: "", css: "", minX: 0, minY: 0, width: 300, height: 200, background: null });
+  assert.match(svg, /viewBox="0 0 300 200"/);
+});
