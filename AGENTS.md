@@ -77,6 +77,20 @@ Subject in the imperative. **Never add a `Co-Authored-By` trailer or a generated
 
 One commit per coherent step, not one per milestone.
 
+**Every commit that adds behavior explains it in the body, with a worked example.** The history is meant to be readable as the story of how the thing was built, so a body says what the technique is and shows it on real input:
+
+```
+feat(parser): parse the model grammar with panic mode recovery
+
+Postfix modifiers are a loop, not recursion. Each ? or [] wraps what has
+been built so far, so no grammar rule is needed per combination:
+
+    string?[]    ->  Array(Optional(Scalar string))
+    ref(order)[] ->  Array(Ref order)
+```
+
+Indent examples by four spaces so they survive `git log` without a code fence. The same rule applies to the code itself: comments explain the mechanism and why it was chosen, not what the next line does.
+
 ##### References
 
 - `README.md`: what Curly is and how to run it.
