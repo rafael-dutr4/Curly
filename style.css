@@ -141,21 +141,131 @@ body {
 
 #source-pane {
   display: flex;
-  flex-direction: column;
   border-right: 1px solid var(--border);
   min-height: 0;
+  background: var(--panel);
 }
 
-#source {
-  flex: 1;
-  resize: none;
-  border: 0;
-  outline: none;
-  padding: 12px;
-  background: var(--panel);
-  color: var(--text);
-  font: 13px/1.6 var(--mono);
+/* The three layers of the editor share every one of these, and drift in any
+   of them shows up immediately as text that does not sit on its line. */
+#source,
+#highlight,
+#gutter div {
+  font: 13px/20px var(--mono);
   tab-size: 2;
+}
+
+#gutter {
+  flex: none;
+  padding: 12px 8px 12px 12px;
+  overflow: hidden;
+  border-right: 1px solid var(--border);
+  color: var(--muted);
+  text-align: right;
+  user-select: none;
+}
+
+#gutter div {
+  opacity: 0.55;
+}
+
+#gutter div.current {
+  opacity: 1;
+  color: var(--text);
+}
+
+#code {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+#source,
+#highlight {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  white-space: pre;
+  border: 0;
+}
+
+#highlight {
+  pointer-events: none;
+  overflow: hidden;
+  color: var(--text);
+}
+
+/* The textarea keeps the caret, the selection and every native behaviour. Its
+   own glyphs are invisible so the highlighted copy shows through. */
+#source {
+  resize: none;
+  outline: none;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--text);
+}
+
+#source::selection {
+  background: color-mix(in srgb, var(--pinned) 35%, transparent);
+}
+
+/* The band behind the current line, and behind a line called out by a finding. */
+#line-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 12px;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+}
+
+#line-band.flagged {
+  background: color-mix(in srgb, var(--warning) 22%, transparent);
+  box-shadow: inset 2px 0 0 var(--warning);
+}
+
+/* Token colours. Everything here is decided by the lexer, not by a regex. */
+.tok.comment {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.tok.collection {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.tok.field {
+  color: color-mix(in srgb, var(--text) 85%, var(--pinned));
+}
+
+.tok.type {
+  color: var(--pinned);
+}
+
+.tok.keyword {
+  color: var(--pinned);
+  font-weight: 600;
+}
+
+.tok.annotation {
+  color: var(--warning);
+}
+
+.tok.string,
+.tok.number {
+  color: color-mix(in srgb, var(--edge) 40%, var(--pinned));
+}
+
+.tok.punct {
+  color: var(--muted);
+}
+
+.tok.invalid {
+  color: var(--error);
+  text-decoration: wavy underline;
 }
 
 /* Diagnostics float over the diagram rather than living in the text pane, so
@@ -524,6 +634,39 @@ marker path {
   display: flex;
   gap: 8px;
   align-items: baseline;
+  padding: 4px 10px;
+}
+
+#diagnostics .message {
+  flex: 1;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+#diagnostics .message:hover {
+  text-decoration: underline;
+}
+
+/* The repair, offered only where the answer is not a guess. */
+#diagnostics .fix {
+  flex: none;
+  padding: 2px 8px;
+  border: 1px solid var(--pinned);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--pinned);
+  font: 11px var(--mono);
+  cursor: pointer;
+}
+
+#diagnostics .fix:hover {
+  background: var(--pinned);
+  color: var(--bg);
 }
 
 #diagnostics .label {

@@ -1,5 +1,5 @@
 import type { AnnotationNode, BlockNode, CollectionNode, FileNode, TypeNode } from "./ast.ts";
-import { type Diagnostic, error, warning } from "./diagnostic.ts";
+import { type Diagnostic, error, type Suggestion, warning } from "./diagnostic.ts";
 import type { Span } from "./token.ts";
 import {
   type FieldType,
@@ -34,8 +34,8 @@ const SCALAR_SET: ReadonlySet<string> = new Set(SCALAR_TYPES);
 
 export function resolve(file: FileNode): ResolveResult {
   const diagnostics: Diagnostic[] = [];
-  const report = (span: Span, message: string) => diagnostics.push(error(span, message));
-  const warn = (span: Span, message: string) => diagnostics.push(warning(span, message));
+  const report = (span: Span, message: string, fix?: Suggestion) => diagnostics.push(error(span, message, fix));
+  const warn = (span: Span, message: string, fix?: Suggestion) => diagnostics.push(warning(span, message, fix));
 
   // --- pass one: collect the collection names -----------------------------
   const declared = new Map<string, CollectionNode>();
@@ -130,6 +130,7 @@ export function resolve(file: FileNode): ResolveResult {
             suggestion
               ? `unknown type '${node.name.text}', did you mean '${suggestion}'?`
               : `unknown type '${node.name.text}'`,
+            suggestion ? { title: `Use '${suggestion}'`, replaceWith: suggestion } : undefined,
           );
         }
         return { kind: "scalar", name: node.name.text, known, span: node.span };
@@ -145,6 +146,7 @@ export function resolve(file: FileNode): ResolveResult {
             suggestion
               ? `no collection named '${target}', did you mean '${suggestion}'?`
               : `no collection named '${target}'`,
+            suggestion ? { title: `Point at '${suggestion}'`, replaceWith: suggestion } : undefined,
           );
         } else {
           // Only a reference that points somewhere becomes an edge, so the
@@ -178,7 +180,10 @@ export function resolve(file: FileNode): ResolveResult {
       if (!FIELD_ANNOTATIONS.has(name)) {
         // A warning and not an error: a file written by a newer version of
         // Curly should still open in an older one.
-        warn(annotation.span, `unknown annotation '@${name}', it is ignored`);
+        warn(annotation.span, `unknown annotation '@${name}', it is ignored`, {
+          title: "Remove it",
+          replaceWith: "",
+        });
         continue;
       }
 

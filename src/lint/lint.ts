@@ -1,5 +1,6 @@
 import { baseFieldType, type FieldType, type Model, type ModelCollection, type ModelField } from "../lang/model.ts";
 import type { Span } from "../lang/token.ts";
+import { insert, remove, type TextEdit } from "../edit/textedit.ts";
 import { DOCUMENT_LIMIT, estimateCollection, formatBytes } from "./size.ts";
 
 /**
@@ -26,11 +27,24 @@ import { DOCUMENT_LIMIT, estimateCollection, formatBytes } from "./size.ts";
 
 export type FindingLevel = "warning" | "note";
 
+/**
+ * A repair the user can accept.
+ *
+ * Only offered where the answer is not a guess. Nesting that is too deep and
+ * a document over the limit both need a decision about the model, and a
+ * button that pretends otherwise would do damage.
+ */
+export interface Fix {
+  readonly title: string;
+  readonly edits: readonly TextEdit[];
+}
+
 export interface Finding {
   readonly rule: string;
   readonly level: FindingLevel;
   readonly message: string;
   readonly span: Span;
+  readonly fix?: Fix;
 }
 
 /** Deeper than this and a document is hard to query and harder to read. */
@@ -42,11 +56,11 @@ const FAN_OUT_LIMIT = 500;
 /** A document this big is not yet fatal, but it is heading somewhere bad. */
 const LARGE_DOCUMENT = 1024 * 1024;
 
-export function lint(model: Model): Finding[] {
+export function lint(model: Model, source = ""): Finding[] {
   const findings: Finding[] = [];
 
   for (const collection of model.collections) {
-    missingKey(collection, findings);
+    missingKey(collection, source, findings);
     walkFields(collection, collection.fields, 1, findings);
     documentSize(model, collection, findings);
   }
@@ -58,15 +72,21 @@ export function lint(model: Model): Finding[] {
  * A collection with no `_id` is not wrong, since MongoDB adds one. It is worth
  * saying because a reference to this collection has to guess what it points at.
  */
-function missingKey(collection: ModelCollection, findings: Finding[]): void {
+function missingKey(collection: ModelCollection, source: string, findings: Finding[]): void {
   if (collection.fields.length === 0) return;
   if (collection.fields.some((f) => f.name === "_id")) return;
+
+  const first = collection.fields[0]!;
+  // Put the key where a key belongs, on its own line above the first field,
+  // matching that field's indentation.
+  const indent = /^[ \t]*/.exec(source.slice(source.lastIndexOf("\n", first.span.start - 1) + 1))?.[0] ?? "  ";
 
   findings.push({
     rule: "missing-key",
     level: "note",
     message: `'${collection.name}' has no _id, so a reference to it has to assume one`,
     span: collection.nameSpan,
+    fix: { title: "Add _id", edits: [insert(first.span.start, `_id: objectId,\n${indent}`)] },
   });
 }
 
@@ -105,6 +125,15 @@ function redundantIndex(field: ModelField, findings: Finding[]): void {
     level: "note",
     message: `@unique already indexes '${field.name}', so @index adds nothing`,
     span: annotation?.span ?? field.nameSpan,
+    ...(annotation
+      ? {
+          fix: {
+            title: "Remove @index",
+            // One character back, to take the space in front of it too.
+            edits: [remove({ start: annotation.span.start - 1, end: annotation.span.end })],
+          },
+        }
+      : {}),
   });
 }
 
@@ -128,6 +157,9 @@ function unboundedArray(collection: ModelCollection, field: ModelField, findings
     level: "note",
     message: `'${collection.name}.${field.name}' is an array of ${what} with no expected size, so nothing stops it growing past the 16MB document limit. Add @count(n) to say how big it gets.`,
     span: field.nameSpan,
+    // A starting point, not an answer. Only the modeller knows the real
+    // number, but a written guess is easier to argue with than a blank.
+    fix: { title: "Add @count(100)", edits: [insert(field.span.end, " @count(100)")] },
   });
 }
 

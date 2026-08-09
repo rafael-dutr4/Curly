@@ -49,9 +49,19 @@ if (textarea && diagnostics && svg) {
     showSource(workspace?.classList.contains("source-hidden") ?? true);
   });
 
-  // A diagnostic selects its span in the textarea, which is no use if the
+  // A finding selects its span in the textarea, which is no use if the
   // textarea is not on screen.
-  attachEditor(textarea, diagnostics, model, () => showSource(true));
+  attachEditor(
+    {
+      textarea,
+      mirror: document.getElementById("highlight")!,
+      gutter: document.getElementById("gutter")!,
+      band: document.getElementById("line-band")!,
+      list: diagnostics,
+    },
+    model,
+    () => showSource(true),
+  );
   attachHistoryShortcuts(window, model);
 
   const rect = svg.getBoundingClientRect();
@@ -67,6 +77,19 @@ if (textarea && diagnostics && svg) {
 
   const draw = (): void => {
     renderDiagram(svg, layout(model.compilation().model));
+  };
+
+  /**
+   * Refit when a whole model arrives, and only then.
+   *
+   * Refitting on every change would fight the user by moving the view while
+   * they work. But a model that was just opened has nothing to do with
+   * wherever the last one was zoomed to, and keeping the old view makes a
+   * freshly loaded file look like a handful of dots in a corner.
+   */
+  const refit = (): void => {
+    const size = svg.getBoundingClientRect();
+    viewport.set(fit(layout(model.compilation().model), size.height > 0 ? size.width / size.height : 1.5));
   };
 
   const project = createProjectName();
@@ -122,6 +145,7 @@ if (textarea && diagnostics && svg) {
     }
     if (pending !== undefined) clearTimeout(pending);
     draw();
+    if (change.origin === "load") refit();
   });
 
   draw();

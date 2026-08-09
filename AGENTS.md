@@ -48,7 +48,8 @@ src/export/
 src/app/
   document.ts     the source string, undo stack, reparse, change events
   main.ts         wiring and debounce
-  editor.ts       textarea and diagnostics list
+  editor.ts       the numbered, highlighted text pane and the findings list
+  highlight.ts    tokens -> coloured HTML, from the lexer
   storage.ts      File System Access API with a download fallback
 ```
 

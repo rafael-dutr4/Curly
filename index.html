@@ -58,7 +58,19 @@
 
     <main id="workspace" class="source-hidden">
       <section id="source-pane">
-        <textarea id="source" spellcheck="false" autocomplete="off" aria-label="Model source"></textarea>
+        <div id="gutter" aria-hidden="true"></div>
+        <div id="code">
+          <div id="line-band" aria-hidden="true"></div>
+          <pre id="highlight" aria-hidden="true"></pre>
+          <textarea
+            id="source"
+            spellcheck="false"
+            autocomplete="off"
+            autocapitalize="off"
+            wrap="off"
+            aria-label="Model source"
+          ></textarea>
+        </div>
       </section>
 
       <section id="diagram-pane">
