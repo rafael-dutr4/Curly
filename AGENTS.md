@@ -46,6 +46,7 @@ src/export/
   jsonschema.ts   Model -> JSON Schema and MongoDB $jsonSchema
   samples.ts      Model -> example documents
   prng.ts         xorshift32
+  image.ts        the diagram as a standalone SVG, and as a PNG
 src/app/
   document.ts     the source string, undo stack, reparse, change events
   main.ts         wiring and debounce

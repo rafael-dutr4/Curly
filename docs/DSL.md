@@ -207,6 +207,14 @@ A top level `@name { ... }` form parses and is reported as unsupported:
 Nothing uses it. It exists so that anything which is not a collection has
 somewhere to go later, without breaking files written today.
 
+## Exporting the diagram
+
+The PNG is the whole model at its natural size, not the part currently on
+screen, so it does not depend on where the diagram happened to be scrolled. It
+is drawn at twice the size to stay sharp, takes the background of whichever
+theme is active, and leaves out the hover controls, which mean nothing in a
+picture.
+
 ## What Curly is not
 
 Curly models documents. It does not know your queries, and it does not try to:

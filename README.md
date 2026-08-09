@@ -45,7 +45,7 @@ The text file is the source of truth. The diagram is editable, and every edit is
 - Highlights the source, numbers the lines, and calls out the line a finding points at.
 - Reports every mistake with the line it is on, and keeps drawing whatever it understood. Where the answer is not a guess, it offers to make the change for you.
 - Lints the model itself: unbounded arrays, documents heading for the 16MB limit, fan out, nesting nobody can query.
-- Exports JSON Schema, a MongoDB `$jsonSchema` validator, and sample documents, all named after the project.
+- Exports JSON Schema, a MongoDB `$jsonSchema` validator, sample documents, and the diagram as a PNG, all named after the project.
 - Opens and saves `.curly` files, and keeps the current buffer across a reload.
 - Follows the system light or dark theme, and lets you disagree with it.
 

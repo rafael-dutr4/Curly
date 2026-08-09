@@ -21,3 +21,16 @@ export function download(filename: string, contents: string, type = "application
 export function downloadJson(filename: string, value: unknown): void {
   download(filename, `${JSON.stringify(value, null, 2)}\n`);
 }
+
+/** The same mechanism for something already binary, such as a rendered PNG. */
+export function downloadBlob(filename: string, blob: Blob): void {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.style.display = "none";
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}

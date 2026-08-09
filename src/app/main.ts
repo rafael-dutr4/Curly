@@ -3,11 +3,12 @@ import { attachInteraction } from "../render/interact.ts";
 import { renderDiagram } from "../render/svg.ts";
 import { attachViewport, fit } from "../render/viewport.ts";
 import { toJsonSchema, toMongoValidators } from "../export/jsonschema.ts";
+import { diagramSvg, svgToPng } from "../export/image.ts";
 import { sampleDocuments } from "../export/samples.ts";
 import { applyTheme, otherTheme, systemTheme, type Theme } from "./appearance.ts";
 import { createDocument, type CurlyDocument } from "./document.ts";
 import { chooseExample, confirmDiscard } from "./dialog.ts";
-import { downloadJson } from "./download.ts";
+import { downloadBlob, downloadJson } from "./download.ts";
 import { EXAMPLES } from "./examples.ts";
 import { type FileHandleLike, openModel, saveModel } from "./files.ts";
 import { attachEditor, attachHistoryShortcuts } from "./editor.ts";
@@ -109,6 +110,22 @@ if (textarea && diagnostics && svg) {
       () => downloadJson(project.fileName(".validators.json"), toMongoValidators(model.compilation().model)),
     ],
     ["export-samples", () => downloadJson(project.fileName(".samples.json"), sampleDocuments(model.compilation().model))],
+    [
+      "export-png",
+      () => {
+        // The picture takes the page's own background, so a dark diagram does
+        // not arrive as dark text on nothing.
+        const background = getComputedStyle(document.body).backgroundColor;
+        const drawing = layout(model.compilation().model);
+        void svgToPng(diagramSvg(svg, drawing, background))
+          .then((blob) => downloadBlob(project.fileName(".png"), blob))
+          .catch(() => {
+            // Nothing to fall back to, and a thrown promise in the console is
+            // less use than saying so where the other problems are said.
+            diagnostics.replaceChildren(errorItem("the diagram could not be exported as a PNG"));
+          });
+      },
+    ],
   ];
 
   const buttons = exporters.map(([id, run]) => {
@@ -161,6 +178,18 @@ if (textarea && diagnostics && svg) {
 
   draw();
   updateExports();
+}
+
+function errorItem(message: string): HTMLLIElement {
+  const item = document.createElement("li");
+  item.className = "error";
+  const label = document.createElement("span");
+  label.className = "label";
+  label.textContent = "export";
+  const text = document.createElement("span");
+  text.textContent = message;
+  item.append(label, text);
+  return item;
 }
 
 /**
