@@ -10,28 +10,56 @@
  * to take the application down with it.
  */
 
-const KEY = "curly.buffer";
+const BUFFER = "curly.buffer";
+const PROJECT = "curly.project";
+const THEME = "curly.theme";
 
-export function loadBuffer(): string | null {
+function read(key: string): string | null {
   try {
-    return globalThis.localStorage?.getItem(KEY) ?? null;
+    return globalThis.localStorage?.getItem(key) ?? null;
   } catch {
     return null;
   }
 }
 
-export function saveBuffer(source: string): void {
+function write(key: string, value: string): void {
   try {
-    globalThis.localStorage?.setItem(KEY, source);
+    globalThis.localStorage?.setItem(key, value);
   } catch {
-    // Autosave is a convenience, not a guarantee.
+    // Persistence is a convenience, not a guarantee.
   }
+}
+
+export function loadBuffer(): string | null {
+  return read(BUFFER);
+}
+
+export function saveBuffer(source: string): void {
+  write(BUFFER, source);
 }
 
 export function clearBuffer(): void {
   try {
-    globalThis.localStorage?.removeItem(KEY);
+    globalThis.localStorage?.removeItem(BUFFER);
   } catch {
     // As above.
   }
+}
+
+export function loadProjectName(): string | null {
+  return read(PROJECT);
+}
+
+export function saveProjectName(name: string): void {
+  write(PROJECT, name);
+}
+
+/** Null means no preference has been expressed, so the system decides. */
+export function loadTheme(): "light" | "dark" | null {
+  const stored = read(THEME);
+  return stored === "light" || stored === "dark" ? stored : null;
+}
+
+export function saveTheme(theme: "light" | "dark"): void {
+  write(THEME, theme);
 }

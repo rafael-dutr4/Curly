@@ -10,6 +10,15 @@
     <header id="toolbar">
       <span id="brand">Curly</span>
 
+      <input
+        id="project-name"
+        type="text"
+        spellcheck="false"
+        autocomplete="off"
+        aria-label="Project name"
+        title="The name of this model. Exports and saved files are named after it."
+      />
+
       <button type="button" id="file-open" title="Open a .curly model from your computer">Open</button>
       <button type="button" id="file-save" title="Save the model back to its file, or choose where to put it">
         Save
@@ -20,6 +29,7 @@
 
       <span class="spacer"></span>
 
+      <button type="button" id="toggle-theme" title="Switch between the light and dark theme">Theme</button>
       <button type="button" id="toggle-source" aria-pressed="false" title="Show the model as text and edit it directly">
         Source
       </button>

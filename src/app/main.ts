@@ -4,13 +4,15 @@ import { renderDiagram } from "../render/svg.ts";
 import { attachViewport, fit } from "../render/viewport.ts";
 import { toJsonSchema, toMongoValidators } from "../export/jsonschema.ts";
 import { sampleDocuments } from "../export/samples.ts";
+import { applyTheme, otherTheme, systemTheme, type Theme } from "./appearance.ts";
 import { createDocument, type CurlyDocument } from "./document.ts";
 import { chooseExample, confirmDiscard } from "./dialog.ts";
 import { downloadJson } from "./download.ts";
 import { EXAMPLES } from "./examples.ts";
 import { type FileHandleLike, openModel, saveModel } from "./files.ts";
 import { attachEditor, attachHistoryShortcuts } from "./editor.ts";
-import { loadBuffer, saveBuffer } from "./storage.ts";
+import { DEFAULT_PROJECT_NAME, nameFromFileName, toFileName } from "./project.ts";
+import { loadBuffer, loadProjectName, loadTheme, saveBuffer, saveProjectName, saveTheme } from "./storage.ts";
 import { STARTER } from "./starter.ts";
 
 /**
@@ -24,6 +26,8 @@ import { STARTER } from "./starter.ts";
  * and every change, whether typed or made on the diagram, goes back through
  * the document rather than touching the screen directly.
  */
+
+wireTheme();
 
 const textarea = document.getElementById("source") as HTMLTextAreaElement | null;
 const diagnostics = document.getElementById("diagnostics");
@@ -65,15 +69,8 @@ if (textarea && diagnostics && svg) {
     renderDiagram(svg, layout(model.compilation().model));
   };
 
-  /**
-   * Typing debounces; anything else draws at once.
-   *
-   * A full reparse is microseconds, so the debounce is not about the parser.
-   * It is about not rebuilding a few hundred SVG elements between two letters
-   * of a word. A gesture has no such problem: there is one of it, and the
-   * result has to appear under the pointer immediately.
-   */
-  wireFiles(model);
+  const project = createProjectName();
+  wireFiles(model, project);
 
   /**
    * Exporting a model that does not resolve would produce a schema with holes
@@ -81,9 +78,12 @@ if (textarea && diagnostics && svg) {
    * over something quietly wrong. Warnings are fine.
    */
   const exporters: [string, () => void][] = [
-    ["export-schema", () => downloadJson("curly.schema.json", toJsonSchema(model.compilation().model))],
-    ["export-validator", () => downloadJson("curly.validators.json", toMongoValidators(model.compilation().model))],
-    ["export-samples", () => downloadJson("curly.samples.json", sampleDocuments(model.compilation().model))],
+    ["export-schema", () => downloadJson(project.fileName(".schema.json"), toJsonSchema(model.compilation().model))],
+    [
+      "export-validator",
+      () => downloadJson(project.fileName(".validators.json"), toMongoValidators(model.compilation().model)),
+    ],
+    ["export-samples", () => downloadJson(project.fileName(".samples.json"), sampleDocuments(model.compilation().model))],
   ];
 
   const buttons = exporters.map(([id, run]) => {
@@ -103,6 +103,14 @@ if (textarea && diagnostics && svg) {
     }
   };
 
+  /**
+   * Typing debounces; anything else draws at once.
+   *
+   * A full reparse is microseconds, so the debounce is not about the parser.
+   * It is about not rebuilding a few hundred SVG elements between two letters
+   * of a word. A gesture has no such problem: there is one of it, and the
+   * result has to appear under the pointer immediately.
+   */
   let pending: number | undefined;
   model.subscribe((change) => {
     saveBuffer(change.source);
@@ -121,6 +129,85 @@ if (textarea && diagnostics && svg) {
 }
 
 /**
+ * The theme, wired before anything else so the page never paints in the wrong
+ * palette and then corrects itself.
+ *
+ * With no stored choice the system decides, which is why nothing is written to
+ * the root element until someone actually picks a side.
+ */
+function wireTheme(): void {
+  const stored = loadTheme();
+  let theme: Theme = stored ?? systemTheme();
+  if (stored) applyTheme(stored);
+
+  const button = document.getElementById("toggle-theme") as HTMLButtonElement | null;
+
+  const label = (): void => {
+    if (!button) return;
+    button.textContent = theme === "dark" ? "Light" : "Dark";
+    button.title = `Switch to the ${otherTheme(theme)} theme`;
+  };
+
+  button?.addEventListener("click", () => {
+    theme = otherTheme(theme);
+    applyTheme(theme);
+    saveTheme(theme);
+    label();
+  });
+
+  label();
+
+  // Follow the system while no explicit choice has been made, so a machine
+  // that switches at sunset still switches the page.
+  globalThis.matchMedia?.("(prefers-color-scheme: dark)").addEventListener("change", (event) => {
+    if (loadTheme()) return;
+    theme = event.matches ? "dark" : "light";
+    label();
+  });
+}
+
+export interface ProjectName {
+  get(): string;
+  set(name: string): void;
+  /** The project name turned into a download filename, such as `blog.samples.json`. */
+  fileName(suffix: string): string;
+}
+
+/**
+ * The project name, shown in the toolbar and used to name everything that
+ * leaves the application.
+ */
+function createProjectName(): ProjectName {
+  const input = document.getElementById("project-name") as HTMLInputElement | null;
+  let name = loadProjectName() ?? DEFAULT_PROJECT_NAME;
+
+  const render = (): void => {
+    if (input && input.value !== name) input.value = name;
+  };
+
+  const set = (next: string): void => {
+    name = next.trim() || DEFAULT_PROJECT_NAME;
+    saveProjectName(name);
+    render();
+  };
+
+  input?.addEventListener("input", () => {
+    // Store what was typed, but do not fight the caret by rewriting the field
+    // while it is being edited. An empty box falls back to the default only
+    // once it is left.
+    name = input.value.trim() || DEFAULT_PROJECT_NAME;
+    saveProjectName(name);
+  });
+  input?.addEventListener("blur", () => set(input.value));
+  input?.addEventListener("keydown", (event: KeyboardEvent) => {
+    if (event.key === "Enter") input.blur();
+  });
+
+  render();
+  return { get: () => name, set, fileName: (suffix) => toFileName(name, suffix) };
+}
+
+/**
  * Open, Save, and the example menu.
  *
  * The open file's handle is remembered so Save writes back to it instead of
@@ -128,9 +215,8 @@ if (textarea && diagnostics && svg) {
  * the handle, because saving after that should ask where to put it rather
  * than quietly overwrite the file that happens to still be open.
  */
-function wireFiles(model: CurlyDocument): void {
+function wireFiles(model: CurlyDocument, project: ProjectName): void {
   let handle: FileHandleLike | null = null;
-  let name = "model.curly";
 
   /**
    * The text as it was the last time it was loaded or saved. Anything else on
@@ -157,14 +243,15 @@ function wireFiles(model: CurlyDocument): void {
     const opened = await openModel();
     if (!opened) return;
     handle = opened.handle;
-    name = opened.name;
+    // The file names the project, which then names every export.
+    project.set(nameFromFileName(opened.name));
     model.set(opened.text, "load");
     pristine = opened.text;
   });
 
   document.getElementById("file-save")?.addEventListener("click", async () => {
     const saved = model.source();
-    handle = await saveModel(saved, handle, name);
+    handle = await saveModel(saved, handle, project.fileName(".curly"));
     // Saved is saved whether it went to a handle or to the downloads folder.
     pristine = saved;
   });
@@ -182,7 +269,7 @@ function wireFiles(model: CurlyDocument): void {
 
     const text = await response.text();
     handle = null;
-    name = example.path.split("/").at(-1) ?? "model.curly";
+    project.set(nameFromFileName(example.path));
     model.set(text, "load");
     pristine = text;
   });

@@ -11,8 +11,12 @@
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 }
 
+/* The dark palette is defined once and applied from two places: when the
+   system asks for dark and nothing overrides it, and when dark is chosen
+   outright. The :not() in the media query is what lets someone pick light on
+   a machine that is set to dark. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #17171a;
     --panel: #202024;
     --border: #3a3a42;
@@ -23,6 +27,18 @@
     --edge: #86868f;
     --pinned: #6ea8e8;
   }
+}
+
+:root[data-theme="dark"] {
+  --bg: #17171a;
+  --panel: #202024;
+  --border: #3a3a42;
+  --text: #e8e8ec;
+  --muted: #9a9aa6;
+  --error: #ff8095;
+  --warning: #e0b341;
+  --edge: #86868f;
+  --pinned: #6ea8e8;
 }
 
 * {
@@ -58,6 +74,30 @@ body {
 
 #toolbar .spacer {
   flex: 1;
+}
+
+/* The project name reads as a label until it is hovered or focused, so it
+   looks like a title rather than a form field that needs filling in. */
+#project-name {
+  width: 14ch;
+  padding: 4px 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font: 12px var(--mono);
+}
+
+#project-name:hover {
+  border-color: var(--border);
+}
+
+#project-name:focus {
+  width: 20ch;
+  border-color: var(--pinned);
+  background: var(--panel);
+  color: var(--text);
+  outline: none;
 }
 
 #toolbar button {
