@@ -111,6 +111,7 @@ On a field:
 | `@index` | the field is indexed |
 | `@default(v)` | default value |
 | `@enum(a, b)` | the allowed values |
+| `@count(n)` | how many elements this array is expected to hold |
 
 ```
 state: string @enum(draft, published) @default("draft")
@@ -125,8 +126,39 @@ On a collection:
 `@at` is written by dragging a box, not usually by hand. A collection without
 one is placed automatically.
 
+`@count` is what lets the linter say anything useful about size. Without it an
+array has no expected length, so nothing can tell a list of three addresses
+from a list of three million events:
+
+```
+lines: [{ sku: string, qty: int }] @count(20)
+```
+
 An annotation Curly does not know is a warning rather than an error, so a file
 written by a newer version still opens.
+
+## What the linter checks
+
+The compiler tells you the model is spelled correctly. The linter tells you it
+is a good idea. The interesting failures of a document model are all legal
+syntax, so these are the ones worth knowing about.
+
+| Rule | Says |
+| --- | --- |
+| `unbounded-array` | an array of documents or references has no `@count`, so nothing stops it growing past 16MB |
+| `large-document` | a document is estimated over 1MB and heading for the limit |
+| `document-too-large` | the estimate is already over 16MB, so it cannot be written at all |
+| `fan-out` | an array holds hundreds of references, and the link probably belongs on the other collection |
+| `deep-nesting` | embedding is more than four levels deep, which is hard to query |
+| `missing-key` | a collection has no `_id`, so a reference to it has to assume one |
+| `redundant-index` | `@unique` already indexes the field, so `@index` adds nothing |
+
+Sizes are estimates. A string has no length in the model, so it is assumed to
+be 32 bytes, and an array with no `@count` is assumed to hold ten. The point is
+to tell a 400 byte document from a 40MB one, and an estimate does that.
+
+Nothing here blocks anything. A note is advice, a warning is advice with more
+urgency, and both leave the model exactly as you wrote it.
 
 ## Comments
 

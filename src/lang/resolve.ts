@@ -28,7 +28,7 @@ export interface ResolveResult {
   readonly diagnostics: readonly Diagnostic[];
 }
 
-const FIELD_ANNOTATIONS = new Set(["unique", "index", "default", "enum"]);
+const FIELD_ANNOTATIONS = new Set(["unique", "index", "default", "enum", "count"]);
 const COLLECTION_ANNOTATIONS = new Set(["at"]);
 const SCALAR_SET: ReadonlySet<string> = new Set(SCALAR_TYPES);
 
@@ -112,6 +112,7 @@ export function resolve(file: FileNode): ResolveResult {
         indexed: flags.indexed,
         defaultValue: flags.defaultValue,
         enumValues: flags.enumValues,
+        count: flags.count,
       });
     }
 
@@ -169,6 +170,7 @@ export function resolve(file: FileNode): ResolveResult {
     let indexed = false;
     let defaultValue: string | number | null = null;
     let enumValues: (string | number)[] | null = null;
+    let count: number | null = null;
 
     for (const annotation of annotations) {
       const name = annotation.name.text;
@@ -204,10 +206,19 @@ export function resolve(file: FileNode): ResolveResult {
           enumValues = annotation.args.map((a) => (a.kind === "number" ? a.value : String(a.value)));
           break;
         }
+        case "count": {
+          const first = annotation.args[0];
+          if (annotation.args.length !== 1 || first?.kind !== "number" || first.value < 0) {
+            report(annotation.span, "@count takes one number, the expected size of the array");
+            break;
+          }
+          count = first.value;
+          break;
+        }
       }
     }
 
-    return { unique, indexed, defaultValue, enumValues };
+    return { unique, indexed, defaultValue, enumValues, count };
   }
 
   function readPosition(

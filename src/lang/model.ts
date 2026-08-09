@@ -85,6 +85,11 @@ export interface ModelField {
   readonly indexed: boolean;
   readonly defaultValue: string | number | null;
   readonly enumValues: readonly (string | number)[] | null;
+  /**
+   * From `@count(n)`: how many elements this array is expected to hold.
+   * Null means nobody said, which is what makes an array unbounded.
+   */
+  readonly count: number | null;
 }
 
 export interface Position {

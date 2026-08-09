@@ -1,5 +1,20 @@
 import type { Diagnostic } from "../lang/diagnostic.ts";
+import type { Span } from "../lang/token.ts";
+import { lint } from "../lint/lint.ts";
 import type { CurlyDocument } from "./document.ts";
+
+/**
+ * A line in the list under the diagram. Errors and warnings come from
+ * compiling; notes and advice come from the linter. They share a list because
+ * from where the user sits they are the same thing: something worth reading
+ * about the model, attached to a place in it.
+ */
+interface Entry {
+  readonly level: string;
+  readonly label: string;
+  readonly message: string;
+  readonly span: Span;
+}
 
 /**
  * The text pane: a plain textarea plus the diagnostics under it.
@@ -45,10 +60,10 @@ export function attachEditor(
       const limit = change.source.length;
       textarea.setSelectionRange(Math.min(caret, limit), Math.min(end, limit));
     }
-    renderDiagnostics(list, textarea, change.compilation.diagnostics, reveal);
+    renderList(list, textarea, entriesFor(change.compilation), reveal);
   });
 
-  renderDiagnostics(list, textarea, document_.compilation().diagnostics, reveal);
+  renderList(list, textarea, entriesFor(document_.compilation()), reveal);
 }
 
 /**
@@ -71,17 +86,47 @@ export function attachHistoryShortcuts(target: Window, document_: CurlyDocument)
   });
 }
 
-function renderDiagnostics(
+/**
+ * Compile first, then lint, and only lint a model that resolves. Advice about
+ * the shape of a model that does not parse is noise on top of an error the
+ * user is already reading.
+ */
+function entriesFor(compilation: { diagnostics: readonly Diagnostic[]; model: Parameters<typeof lint>[0] }): Entry[] {
+  const entries: Entry[] = compilation.diagnostics.map((d) => ({
+    level: d.severity,
+    label: d.severity,
+    message: d.message,
+    span: d.span,
+  }));
+
+  if (!compilation.diagnostics.some((d) => d.severity === "error")) {
+    for (const finding of lint(compilation.model)) {
+      entries.push({ level: finding.level, label: finding.rule, message: finding.message, span: finding.span });
+    }
+  }
+
+  return entries;
+}
+
+function renderList(
   list: HTMLElement,
   textarea: HTMLTextAreaElement,
-  diagnostics: readonly Diagnostic[],
+  entries: readonly Entry[],
   reveal: () => void,
 ): void {
   list.replaceChildren(
-    ...diagnostics.map((diagnostic) => {
+    ...entries.map((entry) => {
       const item = list.ownerDocument.createElement("li");
-      item.className = diagnostic.severity;
-      item.textContent = `line ${diagnostic.span.line}: ${diagnostic.message}`;
+      item.className = entry.level;
+
+      const label = list.ownerDocument.createElement("span");
+      label.className = "label";
+      label.textContent = entry.label;
+
+      const text = list.ownerDocument.createElement("span");
+      text.textContent = `line ${entry.span.line}: ${entry.message}`;
+
+      item.append(label, text);
       item.tabIndex = 0;
 
       // The span is already the right thing to select, which is the payoff for
@@ -89,7 +134,7 @@ function renderDiagnostics(
       const select = (): void => {
         reveal();
         textarea.focus();
-        textarea.setSelectionRange(diagnostic.span.start, diagnostic.span.end);
+        textarea.setSelectionRange(entry.span.start, entry.span.end);
       };
       item.addEventListener("click", select);
       item.addEventListener("keydown", (event: KeyboardEvent) => {

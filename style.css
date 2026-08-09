@@ -517,3 +517,36 @@ marker path {
   border: 0;
   border-top: 1px solid var(--border);
 }
+
+/* Findings from the linter sit in the same list as the compiler's, but they
+   are advice rather than mistakes, so they read more quietly. */
+#diagnostics li {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+#diagnostics .label {
+  flex: none;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--border);
+  color: var(--text);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+#diagnostics li.note {
+  color: var(--muted);
+}
+
+#diagnostics li.error .label {
+  background: var(--error);
+  color: var(--bg);
+}
+
+#diagnostics li.warning .label {
+  background: var(--warning);
+  color: var(--bg);
+}

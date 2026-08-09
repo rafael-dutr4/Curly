@@ -33,6 +33,9 @@ src/edit/     text patching
 src/layout/   pure geometry, no DOM
   measure.ts      monospace width arithmetic
   layout.ts       box sizing recursion and longest path layering
+src/lint/     advice about the model, not about the syntax
+  size.ts         BSON size estimation from the model
+  lint.ts         the rules
 src/render/   the DOM lives here and nowhere else
   svg.ts          geometry -> SVG with data-span attributes
   theme.ts        sizes and colors
