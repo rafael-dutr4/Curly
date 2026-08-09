@@ -1,90 +1,60 @@
-import { compile } from "../lang/compile.ts";
 import { layout } from "../layout/layout.ts";
 import { renderDiagram } from "../render/svg.ts";
 import { attachViewport, fit } from "../render/viewport.ts";
+import { createDocument } from "./document.ts";
+import { attachEditor, attachHistoryShortcuts } from "./editor.ts";
+import { loadBuffer, saveBuffer } from "./storage.ts";
+import { STARTER } from "./starter.ts";
 
 /**
- * Entry point. The pipeline, wired end to end:
+ * Wiring, and nothing else. The pipeline runs in one direction:
  *
- *   source text -> compile (lex, parse, resolve) -> layout -> render
+ *   document (a string)
+ *     -> compile (lex, parse, resolve)
+ *     -> layout   (geometry)
+ *     -> render   (SVG)
  *
- * There is one piece of state and it is the textarea's string. Everything on
- * screen is derived from it on every change, which is the whole reason the two
- * panes cannot disagree.
- *
- * The full app shell (undo, autosave, clickable diagnostics) lands in its own
- * milestone. This is the smallest wiring that draws.
+ * and every change, whether typed or made on the diagram, goes back through
+ * the document rather than touching the screen directly.
  */
 
-const STARTER = `// A model reads like a sample document.
-// Embedding is a nested {} and draws as a box inside a box.
-// A reference is ref(other) and draws as an arrow.
-
-users {
-  _id: objectId,
-  email: string @unique,
-  createdAt: timestamp,
-  profile: {
-    name: string,
-    avatar: string?
-  },
-  orders: ref(order)[]
-}
-
-order {
-  _id: objectId,
-  total: decimal,
-  placedAt: timestamp @index,
-  items: [{
-    sku: string,
-    qty: int
-  }]
-}
-
-item @at(880, 60) {
-  _id: objectId,
-  sku: string @unique,
-  name: string
-}
-`;
-
-const sourceInput = document.getElementById("source") as HTMLTextAreaElement | null;
-const diagnosticList = document.getElementById("diagnostics");
+const textarea = document.getElementById("source") as HTMLTextAreaElement | null;
+const diagnostics = document.getElementById("diagnostics");
 const svg = document.getElementById("diagram") as SVGSVGElement | null;
 
-if (sourceInput && svg) {
-  sourceInput.value = STARTER;
+if (textarea && diagnostics && svg) {
+  const model = createDocument(loadBuffer() ?? STARTER);
+
+  attachEditor(textarea, diagnostics, model);
+  attachHistoryShortcuts(window, model);
 
   const rect = svg.getBoundingClientRect();
   const aspect = rect.height > 0 ? rect.width / rect.height : 1.5;
-  const viewport = attachViewport(svg, fit(layout(compile(STARTER).model), aspect));
+  attachViewport(svg, fit(layout(model.compilation().model), aspect));
 
   const draw = (): void => {
-    const compilation = compile(sourceInput.value);
-    renderDiagram(svg, layout(compilation.model));
-    showDiagnostics(compilation.diagnostics);
+    renderDiagram(svg, layout(model.compilation().model));
   };
 
-  // A full reparse per keystroke is microseconds, but rebuilding the SVG on
-  // every character is wasted work while someone is mid word.
+  /**
+   * Typing debounces; anything else draws at once.
+   *
+   * A full reparse is microseconds, so the debounce is not about the parser.
+   * It is about not rebuilding a few hundred SVG elements between two letters
+   * of a word. A gesture has no such problem: there is one of it, and the
+   * result has to appear under the pointer immediately.
+   */
   let pending: number | undefined;
-  sourceInput.addEventListener("input", () => {
+  model.subscribe((change) => {
+    saveBuffer(change.source);
+    if (change.origin === "typing") {
+      if (pending !== undefined) clearTimeout(pending);
+      pending = setTimeout(draw, 150);
+      return;
+    }
     if (pending !== undefined) clearTimeout(pending);
-    pending = setTimeout(draw, 150);
+    draw();
   });
 
   draw();
-  viewport.set(viewport.get());
-}
-
-function showDiagnostics(diagnostics: readonly { severity: string; message: string; span: { line: number } }[]): void {
-  if (!diagnosticList) return;
-  diagnosticList.replaceChildren(
-    ...diagnostics.map((d) => {
-      const item = document.createElement("li");
-      item.className = d.severity;
-      item.textContent = `line ${d.span.line}: ${d.message}`;
-      return item;
-    }),
-  );
 }
