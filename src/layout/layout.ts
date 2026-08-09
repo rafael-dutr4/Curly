@@ -1,12 +1,14 @@
 import { baseFieldType, type FieldType, type Model, type ModelCollection, type ModelField } from "../lang/model.ts";
 import type { Span } from "../lang/token.ts";
 import {
+  BODY_GAP,
   BOX_GAP,
   COLUMN_GAP,
   EMBED_INDENT,
   HEADER_HEIGHT,
   LINE_HEIGHT,
   MARGIN,
+  KEY_COLUMN,
   MIN_BOX_WIDTH,
   NAME_TYPE_GAP,
   PADDING_X,
@@ -167,7 +169,7 @@ function sizeBox(
   nestedBox: boolean,
 ): LayoutBox {
   const rows: LayoutRow[] = [];
-  let y = HEADER_HEIGHT;
+  let y = HEADER_HEIGHT + BODY_GAP;
   let contentWidth = textWidth(title);
 
   for (const field of fields) {
@@ -202,7 +204,8 @@ function sizeBox(
     }
 
     const typeLabel = labelOf(field.type);
-    const width = textWidth(field.name) + NAME_TYPE_GAP * textWidth(" ") + textWidth(typeLabel) + badgeWidth(field);
+    const width =
+      KEY_COLUMN + textWidth(field.name) + NAME_TYPE_GAP * textWidth(" ") + textWidth(typeLabel) + badgeWidth(field);
     rows.push({
       name: field.name,
       nameSpan: field.nameSpan,
@@ -210,7 +213,7 @@ function sizeBox(
       typeLabel,
       unique: field.unique,
       indexed: field.indexed,
-      x: PADDING_X,
+      x: PADDING_X + KEY_COLUMN,
       y,
       width,
       height: LINE_HEIGHT,

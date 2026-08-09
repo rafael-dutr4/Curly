@@ -1,0 +1,56 @@
+// One collection, several shapes: the polymorphic pattern.
+//
+// A library lends books, films and magazines. They share most of what matters
+// (a title, a shelf, whether it is out) and differ in a few fields each.
+//
+// Three collections would mean three queries to answer "what is on loan", and
+// three places to change when lending rules change. One collection with a kind
+// field answers it in one query, and the fields that only apply to one kind
+// are simply optional.
+//
+// The trade is honest: optional fields mean the schema no longer says which
+// combinations are legal. @enum on the kind is what keeps that readable.
+
+item @at(40, 40) {
+  _id: objectId,
+  kind: string @enum(book, film, magazine) @index,
+  title: string @index,
+  shelf: string,
+  onLoanTo: ref(member)?,
+
+  // Only a book has these.
+  author: string?,
+  isbn: string?,
+
+  // Only a film has these.
+  director: string?,
+  minutes: int?,
+
+  // Only a magazine has this.
+  issue: string?
+}
+
+member @at(430, 40) {
+  _id: objectId,
+  name: string,
+  email: string @unique,
+  joined: date,
+
+  // The subset pattern: a member borrows hundreds of things over the years,
+  // and the screen only ever shows the last few. The recent ones are copied
+  // here, and the full history lives in its own collection.
+  recentLoans: [{
+    item: ref(item),
+    title: string,
+    takenOn: date
+  }] @count(5)
+}
+
+loan @at(430, 400) {
+  _id: objectId,
+  item: ref(item),
+  member: ref(member),
+  takenOn: date @index,
+  dueOn: date,
+  returnedOn: date?
+}

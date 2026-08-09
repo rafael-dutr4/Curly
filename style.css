@@ -8,6 +8,8 @@
   --warning: #9a6700;
   --edge: #7a7a86;
   --pinned: #3f6ea8;
+  --canvas: #eef1f6;
+  --grid: #c9d2e0;
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 }
 
@@ -17,6 +19,8 @@
    a machine that is set to dark. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
+    --canvas: #1c2430;
+    --grid: #2b3746;
     --bg: #17171a;
     --panel: #202024;
     --border: #3a3a42;
@@ -30,6 +34,8 @@
 }
 
 :root[data-theme="dark"] {
+  --canvas: #1c2430;
+  --grid: #2b3746;
   --bg: #17171a;
   --panel: #202024;
   --border: #3a3a42;
@@ -349,10 +355,25 @@ body {
   display: block;
   cursor: grab;
   touch-action: none;
+  background-color: var(--canvas);
+  /* A dot grid rather than lines: it reads as a surface without competing
+     with the diagram drawn on top of it. */
+  background-image: radial-gradient(var(--grid) 1px, transparent 1px);
+  background-size: 22px 22px;
 }
 
 #diagram.panning {
   cursor: grabbing;
+}
+
+/* A collection header is always a saturated colour, in either theme, so its
+   title is white rather than following the text colour. */
+.curly-box > .curly-title {
+  fill: #ffffff;
+}
+
+.curly-box-nested > .curly-title {
+  fill: var(--text);
 }
 
 /* The diagram. The renderer emits structure and geometry only, so every
@@ -364,14 +385,19 @@ body {
   stroke-width: 1;
 }
 
+/* No fill here: the colour comes from the collection's name and is set as an
+   attribute by the renderer, which also carries it into an export. */
 .curly-header {
-  fill: var(--panel);
   stroke: none;
 }
 
 .curly-box-nested > .curly-frame {
   fill: transparent;
   stroke-dasharray: 3 3;
+}
+
+.curly-marker {
+  stroke: none;
 }
 
 .curly-box-pinned > .curly-frame {
@@ -418,13 +444,24 @@ body {
 
 .curly-action {
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: 14px;
   fill: var(--muted);
   cursor: pointer;
 }
 
 .curly-action:hover {
   fill: var(--error);
+}
+
+/* The delete on a collection sits on a saturated header, where the muted body
+   colour all but disappears. White reads against every hue the palette can
+   produce, and a pale red still says destructive without losing contrast. */
+.curly-box > .curly-action {
+  fill: rgb(255 255 255 / 78%);
+}
+
+.curly-box > .curly-action:hover {
+  fill: #ffdada;
 }
 
 .curly-handle {

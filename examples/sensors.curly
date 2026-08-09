@@ -1,0 +1,38 @@
+// Time series, and the bucket pattern.
+//
+// The obvious model is one document per reading. It is also the wrong one: a
+// billion tiny documents means a billion index entries, and reading an hour of
+// data means a billion lookups. The opposite, one document per sensor holding
+// every reading, hits the 16MB ceiling within a week.
+//
+// The bucket pattern is the middle: one document per sensor per hour. Each
+// bucket is read in one go, the index has one entry per hour instead of per
+// reading, and @count says how big a bucket is allowed to get.
+
+sensor @at(40, 40) {
+  _id: objectId,
+  serial: string @unique,
+  place: string,
+  installedAt: date
+}
+
+// One document per sensor, per hour. The readings inside are bounded by the
+// hour itself, which is what makes this safe where an open ended array is not.
+reading_bucket @at(400, 40) {
+  _id: objectId,
+  sensor: ref(sensor),
+  hour: timestamp @index,
+
+  // Kept on the bucket so a chart can be drawn without opening the samples.
+  // This is the computed pattern: the aggregate is written once, rather than
+  // recalculated on every read.
+  count: int,
+  min: double,
+  max: double,
+  mean: double,
+
+  samples: [{
+    at: timestamp,
+    value: double
+  }] @count(60)
+}

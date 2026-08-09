@@ -34,6 +34,7 @@ export const CLASS = {
   linking: "curly-linking",
   menu: "curly-menu",
   complete: "curly-complete",
+  marker: "curly-marker",
 } as const;
 
 export const ARROW_MARKER_ID = "curly-arrow";

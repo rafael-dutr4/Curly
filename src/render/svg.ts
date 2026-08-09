@@ -1,5 +1,6 @@
 import type { Layout, LayoutBox, LayoutEdge, LayoutRow } from "../layout/layout.ts";
-import { HEADER_HEIGHT, LINE_HEIGHT, PADDING_X, ROW_ACTION_WIDTH } from "../layout/measure.ts";
+import { HEADER_HEIGHT, KEY_COLUMN, LINE_HEIGHT, PADDING_X, ROW_ACTION_WIDTH } from "../layout/measure.ts";
+import { collectionColor, KEY_COLOR, nestedColor, REF_COLOR } from "./palette.ts";
 import type { Span } from "../lang/token.ts";
 import { ARROW_MARKER_ID, CLASS, CORNER_RADIUS, SVG_NS } from "./theme.ts";
 
@@ -38,7 +39,13 @@ export function renderDiagram(svg: SVGSVGElement, drawing: Layout): void {
   svg.replaceChildren(defs, edges, boxes);
 }
 
-function renderBox(document: Document, box: LayoutBox, nested: boolean, path: readonly string[]): SVGElement {
+function renderBox(
+  document: Document,
+  box: LayoutBox,
+  nested: boolean,
+  path: readonly string[],
+  owner: string = box.name,
+): SVGElement {
   const classes: string[] = [CLASS.box];
   if (nested) classes.push(CLASS.nested);
   if (box.pinned) classes.push(CLASS.pinned);
@@ -66,10 +73,13 @@ function renderBox(document: Document, box: LayoutBox, nested: boolean, path: re
 
   // The header is a separate rect clipped to the top corners by sitting under
   // the frame's stroke, which avoids needing a clip path for two rounded ends.
+  // The header colour is data, not theme, so it is set as an attribute rather
+  // than left to the stylesheet. That also means it survives into an export.
   group.append(
     create(document, "path", {
       class: CLASS.header,
       d: headerPath(box.width, Math.min(HEADER_HEIGHT, box.height)),
+      fill: nested ? nestedColor(owner) : collectionColor(owner),
     }),
   );
 
@@ -91,7 +101,7 @@ function renderBox(document: Document, box: LayoutBox, nested: boolean, path: re
 
   if (!nested) group.append(action(document, box.width - PADDING_X, HEADER_HEIGHT / 2, "delete-collection"));
 
-  for (const row of box.rows) group.append(renderRow(document, row, box.width, path));
+  for (const row of box.rows) group.append(renderRow(document, row, box.width, path, owner));
   group.append(renderAddRow(document, box, path));
 
   return group;
@@ -102,18 +112,39 @@ function renderBox(document: Document, box: LayoutBox, nested: boolean, path: re
  * right edge. Aligning each type to the end of its own row instead would leave
  * the column ragged, which makes a box much harder to scan.
  */
-function renderRow(document: Document, row: LayoutRow, containerWidth: number, path: readonly string[]): SVGElement {
+function renderRow(
+  document: Document,
+  row: LayoutRow,
+  containerWidth: number,
+  path: readonly string[],
+  owner: string,
+): SVGElement {
   const group = create(document, "g", { class: CLASS.row, ...spanAttributes(row.span) });
   const fieldPath = [...path, row.name];
   group.dataset.path = fieldPath.join(".");
 
   if (row.nested) {
     // An embedded document draws its own box; the field name is that box's title.
-    group.append(renderBox(document, row.nested, true, fieldPath));
+    group.append(renderBox(document, row.nested, true, fieldPath, owner));
     return group;
   }
 
   const baseline = row.y + LINE_HEIGHT / 2;
+
+  // `_id` is what a reference points at, and a ref is what points away. Those
+  // are the two facts worth seeing without reading the type column.
+  const marker = row.name === "_id" ? KEY_COLOR : row.typeLabel.startsWith("ref(") ? REF_COLOR : null;
+  if (marker) {
+    group.append(
+      create(document, "circle", {
+        class: CLASS.marker,
+        cx: round(row.x - KEY_COLUMN / 2),
+        cy: round(baseline),
+        r: 3.5,
+        fill: marker,
+      }),
+    );
+  }
 
   group.append(
     create(

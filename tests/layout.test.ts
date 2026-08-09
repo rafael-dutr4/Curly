@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import { compile } from "../src/lang/compile.ts";
 import { labelOf, layout, type LayoutBox } from "../src/layout/layout.ts";
-import { BOX_GAP, COLUMN_GAP, HEADER_HEIGHT, LINE_HEIGHT, MARGIN, MIN_BOX_WIDTH } from "../src/layout/measure.ts";
+import { BODY_GAP, BOX_GAP, COLUMN_GAP, HEADER_HEIGHT, LINE_HEIGHT, MARGIN, MIN_BOX_WIDTH } from "../src/layout/measure.ts";
 
 function boxes(source: string): LayoutBox[] {
   return [...layout(compile(source).model).boxes];
@@ -37,18 +37,24 @@ test("box height is the header plus one line per field", () => {
   assert.equal(two - one, LINE_HEIGHT);
 });
 
-test("rows stack down the box, starting under the header", () => {
+test("rows stack down the box, starting a gap below the header", () => {
   const users = box("users { a: int, b: int, c: int }", "users");
+  const first = HEADER_HEIGHT + BODY_GAP;
   assert.deepEqual(
     users.rows.map((r) => r.y),
-    [HEADER_HEIGHT, HEADER_HEIGHT + LINE_HEIGHT, HEADER_HEIGHT + LINE_HEIGHT * 2],
+    [first, first + LINE_HEIGHT, first + LINE_HEIGHT * 2],
   );
+});
+
+test("the first field is not pressed against the coloured header", () => {
+  const users = box("users { a: int }", "users");
+  assert.ok(users.rows[0]!.y > HEADER_HEIGHT, "a gap separates the list from the bar above it");
 });
 
 test("row coordinates are relative to the box, so the box can be translated", () => {
   const pinned = box("users @at(500, 300) { a: int }", "users");
   assert.equal(pinned.x, 500);
-  assert.equal(pinned.rows[0]!.y, HEADER_HEIGHT); // not 300 + HEADER_HEIGHT
+  assert.equal(pinned.rows[0]!.y, HEADER_HEIGHT + BODY_GAP); // not 300 + HEADER_HEIGHT
 });
 
 test("an embedded document becomes a nested box inside the row", () => {
@@ -258,7 +264,7 @@ test("an embedded document reserves one too, so nested fields can be added", () 
 test("the reserved space does not change when a box is hovered, because it is always there", () => {
   // Guarded by construction: the geometry has no notion of hover at all.
   const empty = box("users {}", "users");
-  assert.equal(empty.addRow.y, HEADER_HEIGHT);
+  assert.equal(empty.addRow.y, HEADER_HEIGHT + BODY_GAP);
 });
 
 test("a picture of a dragged model would contain all of it", () => {

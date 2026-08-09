@@ -23,7 +23,7 @@ customer @at(40, 40) {
   }]
 }
 
-product @at(40, 372) {
+product @at(40, 440) {
   _id: objectId,
   sku: string @unique,
   name: string,

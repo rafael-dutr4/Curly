@@ -24,4 +24,14 @@ export const EXAMPLES: readonly Example[] = [
     name: "Shop",
     description: "An order references its customer but copies what was bought.",
   },
+  {
+    path: "examples/sensors.curly",
+    name: "Sensors",
+    description: "Time series in buckets, with the totals stored rather than recounted.",
+  },
+  {
+    path: "examples/library.curly",
+    name: "Library",
+    description: "One collection holding several shapes, and a subset of recent loans.",
+  },
 ];
