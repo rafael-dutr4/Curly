@@ -137,6 +137,19 @@ lines: [{ sku: string, qty: int }] @count(20)
 An annotation Curly does not know is a warning rather than an error, so a file
 written by a newer version still opens.
 
+## Editing a type
+
+Clicking a type on the diagram opens it with the list of types that exist:
+every scalar, `ref(...)` for each collection in the model, and an embedded
+document. Typing filters the list, and picking one keeps whatever `?` and `[]`
+were already written, so completing `ref(ord)[]` gives `ref(order)[]`.
+
+The list suggests rather than restricts, because a type is not a closed set of
+words: an embedded document is a type too. What it does refuse is a type that
+does not resolve, which is checked with the real parser against the real
+collections, so `ref(oder)` cannot be committed by mistake. Escape always
+leaves the field.
+
 ## What the linter checks
 
 The compiler tells you the model is spelled correctly. The linter tells you it

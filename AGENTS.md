@@ -41,6 +41,7 @@ src/render/   the DOM lives here and nowhere else
   theme.ts        sizes and colors
   interact.ts     hit testing, drag, inline input overlay
   menu.ts         the context menu
+  complete.ts     type completions and the validity check
 src/export/
   jsonschema.ts   Model -> JSON Schema and MongoDB $jsonSchema
   samples.ts      Model -> example documents

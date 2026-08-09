@@ -1,5 +1,6 @@
 import type { CurlyDocument } from "../app/document.ts";
 import * as ops from "../edit/ops.ts";
+import { completionsFor, isTypeValid, splitType, typeCandidates } from "./complete.ts";
 import { type MenuSection, showMenu } from "./menu.ts";
 import { CLASS, SVG_NS } from "./theme.ts";
 import { screenToModel, type ViewBox } from "./viewport.ts";
@@ -265,12 +266,19 @@ function createInput(surface: HTMLElement): HTMLInputElement {
   return input;
 }
 
+/** Optional completion behaviour, used when the thing being edited is a type. */
+interface Completion {
+  readonly candidates: readonly string[];
+  readonly isValid: (text: string) => boolean;
+}
+
 function openInput(
   surface: HTMLElement,
   input: HTMLInputElement,
   anchor: Element,
   value: string,
   commit: (next: string) => void,
+  completion?: Completion,
 ): void {
   const box = anchor.getBoundingClientRect();
   const base = surface.getBoundingClientRect();
@@ -279,40 +287,127 @@ function openInput(
   input.value = value;
   input.style.left = `${box.left - base.left - 3}px`;
   input.style.top = `${box.top - base.top - 2}px`;
-  input.style.width = `${Math.max(box.width + 24, 70)}px`;
+  input.style.width = `${Math.max(box.width + 24, 110)}px`;
   input.style.height = `${box.height + 4}px`;
   input.select();
   input.focus();
+
+  const list = completion ? createList(surface, input) : null;
+  let options: string[] = [];
+  let active = -1;
+
+  const paint = (): void => {
+    if (!completion || !list) return;
+
+    const valid = completion.isValid(input.value);
+    input.classList.toggle("invalid", !valid && input.value.trim() !== "");
+
+    const { base: typed, suffix } = splitType(input.value);
+    options = completionsFor(completion.candidates, typed);
+    // An exact single match is not worth a menu that covers the diagram.
+    if (options.length === 1 && options[0] === typed) options = [];
+    active = options.length > 0 ? Math.min(Math.max(active, 0), options.length - 1) : -1;
+
+    list.replaceChildren(
+      ...options.map((option, index) => {
+        const item = surface.ownerDocument.createElement("li");
+        item.textContent = option + suffix;
+        if (index === active) item.className = "active";
+        // pointerdown, not click: the input must not blur before this runs.
+        item.addEventListener("pointerdown", (event) => {
+          event.preventDefault();
+          accept(option);
+        });
+        return item;
+      }),
+    );
+    list.hidden = options.length === 0;
+  };
 
   let done = false;
   const close = (): void => {
     if (done) return;
     done = true;
     input.hidden = true;
+    input.classList.remove("invalid");
     input.onkeydown = null;
     input.onblur = null;
+    input.oninput = null;
+    list?.remove();
   };
 
+  /** Take a candidate, keeping whatever `?` and `[]` were already written. */
+  const accept = (option: string): void => {
+    const { suffix } = splitType(input.value);
+    input.value = option + suffix;
+    active = -1;
+    paint();
+    input.focus();
+  };
+
+  const finish = (): void => {
+    const next = input.value.trim();
+    // Refuse to commit a type the model would only reject. Escape still
+    // leaves, so this holds the mistake without trapping anyone in the field.
+    if (completion && next && !completion.isValid(next)) {
+      input.classList.add("invalid");
+      return;
+    }
+    close();
+    if (next && next !== value) commit(next);
+  };
+
+  input.oninput = paint;
+
   input.onkeydown = (event: KeyboardEvent) => {
+    if (list && !list.hidden && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
+      event.preventDefault();
+      active = (active + (event.key === "ArrowDown" ? 1 : options.length - 1)) % options.length;
+      paint();
+      return;
+    }
+    if (event.key === "Tab" && active >= 0 && options[active]) {
+      event.preventDefault();
+      accept(options[active]!);
+      return;
+    }
     if (event.key === "Enter") {
       event.preventDefault();
-      const next = input.value.trim();
-      close();
-      if (next && next !== value) commit(next);
+      if (active >= 0 && options[active]) {
+        accept(options[active]!);
+        return;
+      }
+      finish();
       return;
     }
     if (event.key === "Escape") {
       event.preventDefault();
-      close(); // nothing changed, which is the point of Escape
+      // The first Escape dismisses the suggestions, the second abandons the
+      // edit, so a list in the way never costs the whole change.
+      if (list && !list.hidden) {
+        list.hidden = true;
+        active = -1;
+        return;
+      }
+      close();
     }
   };
 
   // Clicking away is a commit, matching how a rename works nearly everywhere.
-  input.onblur = () => {
-    const next = input.value.trim();
-    close();
-    if (next && next !== value) commit(next);
-  };
+  input.onblur = finish;
+
+  paint();
+}
+
+function createList(surface: HTMLElement, input: HTMLInputElement): HTMLUListElement {
+  const list = surface.ownerDocument.createElement("ul");
+  list.className = CLASS.complete;
+  list.hidden = true;
+  list.style.left = input.style.left;
+  list.style.top = `${Number.parseFloat(input.style.top) + Number.parseFloat(input.style.height)}px`;
+  list.style.minWidth = input.style.width;
+  surface.append(list);
+  return list;
 }
 
 function editCollectionName(context: InteractionContext, input: HTMLInputElement, target: Element): void {
@@ -344,9 +439,19 @@ function editFieldType(context: InteractionContext, input: HTMLInputElement, tar
   // The rendered label carries the badges, so the text to edit comes from the
   // source instead: what the user typed is what they should see in the input.
   const written = context.document.source().slice(field.type.span.start, field.type.span.end);
-  openInput(context.surface, input, target, written, (next) => {
-    context.document.run((s, m) => ops.setType(s, m, ref, next));
-  });
+  openInput(
+    context.surface,
+    input,
+    target,
+    written,
+    (next) => {
+      context.document.run((s, m) => ops.setType(s, m, ref, next));
+    },
+    {
+      candidates: typeCandidates(model),
+      isValid: (text) => isTypeValid(context.document.source(), context.document.compilation().model, text),
+    },
+  );
 }
 
 function addField(context: InteractionContext, action: Element): void {

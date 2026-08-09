@@ -709,3 +709,47 @@ marker path {
   background: var(--warning);
   color: var(--bg);
 }
+
+/* Type completions. Suggestions, not a gate: a type can be ref(order)[] or a
+   whole embedded document, so the list offers what exists and the field says
+   when what is typed is not one of them. */
+.curly-complete {
+  position: absolute;
+  z-index: 4;
+  max-height: 220px;
+  margin: 2px 0 0;
+  padding: 4px;
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  box-shadow: 0 8px 22px rgb(0 0 0 / 26%);
+}
+
+.curly-complete[hidden] {
+  display: none;
+}
+
+.curly-complete li {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font: 12px var(--mono);
+  color: var(--text);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.curly-complete li:hover {
+  background: var(--bg);
+}
+
+.curly-complete li.active {
+  background: var(--pinned);
+  color: var(--bg);
+}
+
+.curly-editing.invalid {
+  border-color: var(--error);
+  color: var(--error);
+}
