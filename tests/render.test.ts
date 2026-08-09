@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { badges, edgePath, headerPath, spanAttributes } from "../src/render/svg.ts";
+import { translateOf } from "../src/render/interact.ts";
 import { fit, panBy, screenToModel, toAttribute, zoomAt, MIN_ZOOM_WIDTH, MAX_ZOOM_WIDTH } from "../src/render/viewport.ts";
 import { compile } from "../src/lang/compile.ts";
 import { layout } from "../src/layout/layout.ts";
@@ -134,4 +135,23 @@ test("fit shows the whole drawing and never crops it", () => {
 test("fit has a floor, so an empty model does not produce a zero sized view", () => {
   const view = fit(layout(compile("").model), 1.5);
   assert.ok(view.width > 0 && view.height > 0);
+});
+
+test("a translate is read back off a group, so a drag starts where the box is", () => {
+  const element = { getAttribute: () => "translate(120, 40)" } as unknown as Element;
+  assert.deepEqual(translateOf(element), { x: 120, y: 40 });
+});
+
+test("translate parsing copes with the shapes SVG allows", () => {
+  const cases: [string, { x: number; y: number }][] = [
+    ["translate(0, 0)", { x: 0, y: 0 }],
+    ["translate(-8.5, 12.25)", { x: -8.5, y: 12.25 }],
+    ["translate( 4 8 )", { x: 4, y: 8 }],
+    ["", { x: 0, y: 0 }],
+    ["scale(2)", { x: 0, y: 0 }],
+  ];
+  for (const [attribute, expected] of cases) {
+    const element = { getAttribute: () => attribute } as unknown as Element;
+    assert.deepEqual(translateOf(element), expected, `for ${JSON.stringify(attribute)}`);
+  }
 });

@@ -1,5 +1,5 @@
 import type { Layout, LayoutBox, LayoutEdge, LayoutRow } from "../layout/layout.ts";
-import { HEADER_HEIGHT, LINE_HEIGHT, PADDING_X } from "../layout/measure.ts";
+import { HEADER_HEIGHT, LINE_HEIGHT, PADDING_X, ROW_ACTION_WIDTH } from "../layout/measure.ts";
 import type { Span } from "../lang/token.ts";
 import { ARROW_MARKER_ID, CLASS, CORNER_RADIUS, SVG_NS } from "./theme.ts";
 
@@ -32,13 +32,13 @@ export function renderDiagram(svg: SVGSVGElement, drawing: Layout): void {
   for (const edge of drawing.edges) edges.append(renderEdge(document, edge));
 
   const boxes = create(document, "g", { class: CLASS.boxes });
-  for (const box of drawing.boxes) boxes.append(renderBox(document, box, false));
+  for (const box of drawing.boxes) boxes.append(renderBox(document, box, false, []));
 
   // Edges first so boxes paint over them.
   svg.replaceChildren(defs, edges, boxes);
 }
 
-function renderBox(document: Document, box: LayoutBox, nested: boolean): SVGElement {
+function renderBox(document: Document, box: LayoutBox, nested: boolean, path: readonly string[]): SVGElement {
   const classes: string[] = [CLASS.box];
   if (nested) classes.push(CLASS.nested);
   if (box.pinned) classes.push(CLASS.pinned);
@@ -48,7 +48,10 @@ function renderBox(document: Document, box: LayoutBox, nested: boolean): SVGElem
     transform: `translate(${round(box.x)}, ${round(box.y)})`,
     ...spanAttributes(box.span),
   });
-  group.dataset.collection = box.name;
+  // Only a collection carries a name the operations can address. A nested box
+  // is reached through the path of the field that holds it.
+  if (!nested) group.dataset.collection = box.name;
+  group.dataset.containerPath = path.join(".");
 
   group.append(
     create(document, "rect", {
@@ -74,12 +77,22 @@ function renderBox(document: Document, box: LayoutBox, nested: boolean): SVGElem
     create(
       document,
       "text",
-      { class: CLASS.title, x: PADDING_X, y: HEADER_HEIGHT / 2, "dominant-baseline": "middle", ...spanAttributes(box.nameSpan) },
+      {
+        class: CLASS.title,
+        x: PADDING_X,
+        y: HEADER_HEIGHT / 2,
+        "dominant-baseline": "middle",
+        "data-part": nested ? "embedded-title" : "title",
+        ...spanAttributes(box.nameSpan),
+      },
       box.name,
     ),
   );
 
-  for (const row of box.rows) group.append(renderRow(document, row, box.width));
+  if (!nested) group.append(action(document, box.width - PADDING_X, HEADER_HEIGHT / 2, "delete-collection"));
+
+  for (const row of box.rows) group.append(renderRow(document, row, box.width, path));
+  group.append(renderAddRow(document, box, path));
 
   return group;
 }
@@ -89,13 +102,14 @@ function renderBox(document: Document, box: LayoutBox, nested: boolean): SVGElem
  * right edge. Aligning each type to the end of its own row instead would leave
  * the column ragged, which makes a box much harder to scan.
  */
-function renderRow(document: Document, row: LayoutRow, containerWidth: number): SVGElement {
+function renderRow(document: Document, row: LayoutRow, containerWidth: number, path: readonly string[]): SVGElement {
   const group = create(document, "g", { class: CLASS.row, ...spanAttributes(row.span) });
-  group.dataset.field = row.name;
+  const fieldPath = [...path, row.name];
+  group.dataset.path = fieldPath.join(".");
 
   if (row.nested) {
     // An embedded document draws its own box; the field name is that box's title.
-    group.append(renderBox(document, row.nested, true));
+    group.append(renderBox(document, row.nested, true, fieldPath));
     return group;
   }
 
@@ -105,7 +119,14 @@ function renderRow(document: Document, row: LayoutRow, containerWidth: number): 
     create(
       document,
       "text",
-      { class: CLASS.name, x: row.x, y: baseline, "dominant-baseline": "middle", ...spanAttributes(row.nameSpan) },
+      {
+        class: CLASS.name,
+        x: row.x,
+        y: baseline,
+        "dominant-baseline": "middle",
+        "data-part": "name",
+        ...spanAttributes(row.nameSpan),
+      },
       row.name,
     ),
   );
@@ -116,16 +137,73 @@ function renderRow(document: Document, row: LayoutRow, containerWidth: number): 
       "text",
       {
         class: CLASS.type,
-        x: round(containerWidth - PADDING_X),
+        x: round(containerWidth - PADDING_X - ROW_ACTION_WIDTH),
         y: baseline,
         "dominant-baseline": "middle",
         "text-anchor": "end",
+        "data-part": "type",
       },
       `${badges(row)}${row.typeLabel}`,
     ),
   );
 
+  group.append(action(document, containerWidth - PADDING_X, baseline, "delete-field"));
+  // The handle sits on the border, which is where an arrow would leave from.
+  group.append(
+    create(document, "circle", {
+      class: CLASS.handle,
+      cx: round(containerWidth),
+      cy: round(baseline),
+      r: 4,
+      "data-action": "link",
+    }),
+  );
+
   return group;
+}
+
+/** The strip at the bottom of a box that adds a field. Hidden until the box is hovered. */
+function renderAddRow(document: Document, box: LayoutBox, path: readonly string[]): SVGElement {
+  const group = create(document, "g", { class: CLASS.addRow });
+  group.dataset.action = "add-field";
+  group.dataset.containerPath = path.join(".");
+
+  group.append(
+    create(document, "rect", {
+      class: CLASS.addHit,
+      x: 1,
+      y: round(box.addRow.y),
+      width: round(box.width - 2),
+      height: round(box.addRow.height),
+      fill: "transparent",
+    }),
+  );
+  group.append(
+    create(
+      document,
+      "text",
+      {
+        class: CLASS.addLabel,
+        x: PADDING_X,
+        y: round(box.addRow.y + box.addRow.height / 2),
+        "dominant-baseline": "middle",
+      },
+      "+ field",
+    ),
+  );
+  return group;
+}
+
+/** A small hover-only control, drawn as a glyph rather than a button. */
+function action(document: Document, x: number, y: number, name: string): SVGElement {
+  const element = create(
+    document,
+    "text",
+    { class: CLASS.action, x: round(x), y: round(y), "dominant-baseline": "middle", "text-anchor": "end" },
+    "\u00d7",
+  );
+  element.setAttribute("data-action", name);
+  return element;
 }
 
 function renderEdge(document: Document, edge: LayoutEdge): SVGElement {

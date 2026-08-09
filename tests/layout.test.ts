@@ -214,3 +214,22 @@ test("laying out a broken model does not throw", () => {
     assert.doesNotThrow(() => layout(compile(source).model), `threw on ${JSON.stringify(source)}`);
   }
 });
+
+test("every box reserves an add-field row at the bottom", () => {
+  const users = box("users { a: int, b: int }", "users");
+  const lastRow = users.rows.at(-1)!;
+  assert.equal(users.addRow.y, lastRow.y + lastRow.height, "the strip sits under the last field");
+  assert.equal(users.addRow.height, LINE_HEIGHT);
+  assert.ok(users.height >= users.addRow.y + users.addRow.height, "the box is tall enough to hold it");
+});
+
+test("an embedded document reserves one too, so nested fields can be added", () => {
+  const nested = box("users { profile: { name: string } }", "users").rows[0]!.nested!;
+  assert.equal(nested.addRow.height, LINE_HEIGHT);
+});
+
+test("the reserved space does not change when a box is hovered, because it is always there", () => {
+  // Guarded by construction: the geometry has no notion of hover at all.
+  const empty = box("users {}", "users");
+  assert.equal(empty.addRow.y, HEADER_HEIGHT);
+});

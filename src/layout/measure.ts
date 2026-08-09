@@ -33,6 +33,16 @@ export const NAME_TYPE_GAP = 2;
 
 export const MIN_BOX_WIDTH = 140;
 
+/**
+ * Space reserved at the right of every row for its delete control, and the
+ * height of the "add field" row at the bottom of every box.
+ *
+ * Both are reserved in the geometry even though they only appear on hover. If
+ * the layout changed when the pointer entered a box, the box would resize
+ * under the cursor, which is worse than a little permanent padding.
+ */
+export const ROW_ACTION_WIDTH = 18;
+
 /** Horizontal distance between two layers of the reference graph. */
 export const COLUMN_GAP = 80;
 

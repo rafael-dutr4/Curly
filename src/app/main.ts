@@ -1,4 +1,5 @@
 import { layout } from "../layout/layout.ts";
+import { attachInteraction } from "../render/interact.ts";
 import { renderDiagram } from "../render/svg.ts";
 import { attachViewport, fit } from "../render/viewport.ts";
 import { createDocument } from "./document.ts";
@@ -30,7 +31,14 @@ if (textarea && diagnostics && svg) {
 
   const rect = svg.getBoundingClientRect();
   const aspect = rect.height > 0 ? rect.width / rect.height : 1.5;
-  attachViewport(svg, fit(layout(model.compilation().model), aspect));
+  const viewport = attachViewport(svg, fit(layout(model.compilation().model), aspect));
+
+  attachInteraction({
+    svg,
+    surface: svg.parentElement ?? document.body,
+    document: model,
+    view: viewport.get,
+  });
 
   const draw = (): void => {
     renderDiagram(svg, layout(model.compilation().model));

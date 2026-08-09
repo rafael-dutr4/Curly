@@ -11,6 +11,7 @@ import {
   NAME_TYPE_GAP,
   PADDING_X,
   PADDING_Y,
+  ROW_ACTION_WIDTH,
   textWidth,
 } from "./measure.ts";
 
@@ -67,6 +68,8 @@ export interface LayoutBox {
   readonly rows: readonly LayoutRow[];
   /** True when the position came from `@at` rather than from auto placement. */
   readonly pinned: boolean;
+  /** The "add field" strip at the bottom, relative to the box. Always reserved. */
+  readonly addRow: { readonly y: number; readonly height: number };
 }
 
 export interface LayoutEdge {
@@ -197,10 +200,11 @@ function sizeBox(
     span,
     x: 0,
     y: 0,
-    width: Math.max(nestedBox ? 0 : MIN_BOX_WIDTH, contentWidth + PADDING_X * 2),
-    height: y + PADDING_Y,
+    width: Math.max(nestedBox ? 0 : MIN_BOX_WIDTH, contentWidth + PADDING_X * 2 + ROW_ACTION_WIDTH),
+    height: y + LINE_HEIGHT + PADDING_Y,
     rows,
     pinned: false,
+    addRow: { y, height: LINE_HEIGHT },
   };
 }
 

@@ -117,6 +117,8 @@ body {
 #diagram-pane {
   min-width: 0;
   overflow: hidden;
+  /* The inline editor is positioned against this pane. */
+  position: relative;
 }
 
 #diagram {
@@ -173,6 +175,93 @@ body {
 
 .curly-type {
   fill: var(--muted);
+}
+
+/* Affordances. Space for these is reserved in the layout even though they only
+   appear on hover, so a box never resizes under the pointer. */
+
+.curly-action,
+.curly-handle,
+.curly-add {
+  opacity: 0;
+  transition: opacity 90ms ease-out;
+}
+
+.curly-box:hover > .curly-action,
+.curly-box:hover > .curly-add,
+.curly-row:hover > .curly-action,
+.curly-row:hover > .curly-handle {
+  opacity: 1;
+}
+
+.curly-action {
+  font-family: var(--mono);
+  font-size: 13px;
+  fill: var(--muted);
+  cursor: pointer;
+}
+
+.curly-action:hover {
+  fill: var(--error);
+}
+
+.curly-handle {
+  fill: var(--bg);
+  stroke: var(--edge);
+  stroke-width: 1.5;
+  cursor: crosshair;
+}
+
+.curly-handle:hover {
+  fill: var(--pinned);
+}
+
+.curly-add-label {
+  font-family: var(--mono);
+  font-size: 12px;
+  fill: var(--muted);
+}
+
+.curly-add {
+  cursor: pointer;
+}
+
+.curly-add:hover .curly-add-label {
+  fill: var(--text);
+}
+
+.curly-title,
+.curly-name,
+.curly-type {
+  cursor: text;
+}
+
+.curly-box > .curly-frame {
+  cursor: grab;
+}
+
+.curly-linking {
+  stroke: var(--pinned);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+  pointer-events: none;
+}
+
+/* The inline editor: one input moved over whichever text is being edited. */
+.curly-editing {
+  position: absolute;
+  z-index: 2;
+  padding: 0 3px;
+  border: 1px solid var(--pinned);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--text);
+  font: 12px var(--mono);
+  outline: none;
+}
+
+.curly-editing[hidden] {
+  display: none;
 }
 
 .curly-edge path {

@@ -114,7 +114,11 @@ export function attachViewport(svg: SVGSVGElement, initial: ViewBox): { get(): V
     let lastX = event.clientX;
     let lastY = event.clientY;
 
-    svg.setPointerCapture(event.pointerId);
+    try {
+      svg.setPointerCapture(event.pointerId);
+    } catch {
+      // A pan without capture still works while the pointer stays inside.
+    }
     svg.classList.add("panning");
 
     const move = (moveEvent: PointerEvent): void => {

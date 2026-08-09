@@ -25,6 +25,13 @@ export const CLASS = {
   type: "curly-type",
   badge: "curly-badge",
   unknown: "curly-unknown",
+  action: "curly-action",
+  handle: "curly-handle",
+  addRow: "curly-add",
+  addHit: "curly-add-hit",
+  addLabel: "curly-add-label",
+  editing: "curly-editing",
+  linking: "curly-linking",
 } as const;
 
 export const ARROW_MARKER_ID = "curly-arrow";
