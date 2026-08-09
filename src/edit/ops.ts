@@ -116,10 +116,26 @@ export function deleteCollection(source: string, model: Model, name: string): Te
   return [remove({ start, end })];
 }
 
-export function addCollection(source: string, model: Model, name: string): TextEdit[] {
+export function addCollection(
+  source: string,
+  model: Model,
+  name: string,
+  position?: { x: number; y: number },
+): TextEdit[] {
   if (model.byName.has(name)) return [];
   const separator = source.length === 0 ? "" : source.endsWith("\n\n") ? "" : source.endsWith("\n") ? "\n" : "\n\n";
-  return [insert(source.length, `${separator}${name} {\n  _id: objectId\n}\n`)];
+  // Created from the diagram, a collection is pinned where it was asked for.
+  // Created any other way it has no position and the layout places it.
+  const at = position ? ` @at(${Math.round(position.x)}, ${Math.round(position.y)})` : "";
+  return [insert(source.length, `${separator}${name}${at} {\n  _id: objectId\n}\n`)];
+}
+
+/** A name no collection is using yet: `collection`, then `collection2`. */
+export function unusedCollectionName(model: Model, stem = "collection"): string {
+  if (!model.byName.has(stem)) return stem;
+  let n = 2;
+  while (model.byName.has(`${stem}${n}`)) n += 1;
+  return `${stem}${n}`;
 }
 
 /**
@@ -314,6 +330,11 @@ function* everyType(model: Model): Generator<FieldType> {
     else if (type.kind === "embedded") yield* walk(type.fields);
   }
   for (const collection of model.collections) yield* walk(collection.fields);
+}
+
+/** Whether a `?` or `[]` appears in a type's wrapper chain, for menu labels. */
+export function hasWrapper(type: FieldType, kind: "array" | "optional"): boolean {
+  return findWrapper(type, kind) !== null;
 }
 
 /** The first `?` or `[]` in a type's wrapper chain, ignoring what is inside an embedded document. */

@@ -37,6 +37,7 @@ src/render/   the DOM lives here and nowhere else
   svg.ts          geometry -> SVG with data-span attributes
   theme.ts        sizes and colors
   interact.ts     hit testing, drag, inline input overlay
+  menu.ts         the context menu
 src/export/
   jsonschema.ts   Model -> JSON Schema and MongoDB $jsonSchema
   samples.ts      Model -> example documents

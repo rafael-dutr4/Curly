@@ -364,3 +364,44 @@ test("a new collection is appended with a blank line before it", () => {
   assert.ok(result.includes("}\n\ninvoice {"));
   assert.deepEqual(compile(result).diagnostics, []);
 });
+
+// --- creating from the diagram --------------------------------------------
+
+test("a collection created from the diagram is pinned where it was asked for", () => {
+  const result = apply(MODEL, (s, m) => ops.addCollection(s, m, "invoice", { x: 640, y: 220 }));
+  assert.ok(result.includes("invoice @at(640, 220) {"), result);
+  assert.deepEqual(compile(result).diagnostics, []);
+});
+
+test("a created collection rounds its position and starts with a key", () => {
+  const result = apply(MODEL, (s, m) => ops.addCollection(s, m, "invoice", { x: 12.7, y: 4.2 }));
+  assert.ok(result.includes("invoice @at(13, 4) {\n  _id: objectId\n}"), result);
+});
+
+test("a collection created without a position is left for the layout to place", () => {
+  const result = apply(MODEL, (s, m) => ops.addCollection(s, m, "invoice"));
+  assert.ok(result.includes("invoice {"));
+  assert.ok(!/invoice @at/.test(result));
+});
+
+test("the suggested name steps aside for the ones already taken", () => {
+  const { model } = compile(MODEL);
+  assert.equal(ops.unusedCollectionName(model), "collection");
+
+  const withOne = compile(`${MODEL}\ncollection { a: string }`).model;
+  assert.equal(ops.unusedCollectionName(withOne), "collection2");
+
+  const withTwo = compile(`${MODEL}\ncollection { a: string }\ncollection2 { a: string }`).model;
+  assert.equal(ops.unusedCollectionName(withTwo), "collection3");
+});
+
+test("the menu can tell what a field already is", () => {
+  const { model } = compile("t {\n  a: string,\n  b: string?,\n  c: string[],\n  d: string?[]\n}");
+  const field = (name: string) => model.collections[0]!.fields.find((f) => f.name === name)!.type;
+
+  assert.equal(ops.hasWrapper(field("a"), "optional"), false);
+  assert.equal(ops.hasWrapper(field("b"), "optional"), true);
+  assert.equal(ops.hasWrapper(field("c"), "array"), true);
+  assert.equal(ops.hasWrapper(field("d"), "optional"), true);
+  assert.equal(ops.hasWrapper(field("d"), "array"), true);
+});

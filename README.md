@@ -41,6 +41,7 @@ The text file is the source of truth. The diagram is editable, and every edit is
 
 - Writes the model as text, and draws it as a diagram.
 - Edits either side: click a name or a type on the diagram to change it, drag a box to place it, drag a handle onto another collection to make it a reference.
+- Right click anything for the rest: make a field optional or an array, add `@unique` or `@index`, reorder, delete, or create a collection where you clicked.
 - Reports every mistake with the line it is on, and keeps drawing whatever it understood.
 - Exports JSON Schema, a MongoDB `$jsonSchema` validator, and sample documents, all named after the project.
 - Opens and saves `.curly` files, and keeps the current buffer across a reload.
